@@ -1,0 +1,1 @@
+`define INPUTOUTBIT 16
