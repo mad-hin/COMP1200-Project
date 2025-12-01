@@ -27,18 +27,13 @@ module output_controller(
     output reg [6:0] seg,
     output reg [3:0] an
 );
-    // At 300 MHz, adjust refresh and blink rates:
-    // - Refresh: use bits [18:17] -> ~300e6 / 2^(19) ≈ 572 Hz per digit (no flicker)
-    // - Blink:   ~2 Hz using a higher bit toggle (e.g., bit 27 => 300e6 / 2^28 ≈ 1.1 Hz)
-    reg [27:0] refresh_cnt;
+    reg [25:0] refresh_cnt;
     always @(posedge clk) refresh_cnt <= refresh_cnt + 1'b1;
 
     wire [1:0] mux_sel = refresh_cnt[18:17]; // scan digits fast enough
-    wire blink = refresh_cnt[27];            // slow blink
+    wire blink = refresh_cnt[25];
 
     wire is_selected = (mux_sel == current_digit);
-
-    wire sign = display_input[12];
 
     reg [3:0] digit_val;
     reg is_sign_digit;
@@ -56,10 +51,10 @@ module output_controller(
 
     function [6:0] enc7;
         input [3:0] d;
-        input       sign_bit;
-        input       sign_digit;
+        input sign;
+        input sign_digit;
         begin
-            if (sign_digit) enc7 = sign_bit ? 7'b0111111 : 7'b1111111; // '-' or blank
+            if (sign_digit) enc7 = sign ? 7'b0111111 : 7'b1111111; // '-' or blank
             else case(d)
                 4'd0: enc7=7'b1000000;
                 4'd1: enc7=7'b1111001;
@@ -80,6 +75,6 @@ module output_controller(
         if (is_selected && blink)
             seg = 7'b1111111;
         else
-            seg = enc7(digit_val, sign, is_sign_digit);
+            seg = enc7(digit_val, display_input[12], is_sign_digit);
     end
 endmodule
