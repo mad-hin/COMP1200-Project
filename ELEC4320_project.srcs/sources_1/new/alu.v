@@ -1,0 +1,216 @@
+`timescale 1ns / 1ps
+
+`include "define.vh"
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 01.12.2025 15:46:22
+// Design Name: 
+// Module Name: alu
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module alu(
+    input wire clk,
+    input wire rst,
+    input wire [3:0] sw,
+    input wire btn_left,
+    input wire btn_right,
+    input wire btn_up,
+    input wire btn_down,
+    input wire btn_mid,
+    output wire [6:0] seg,
+    output wire [3:0] an,
+    output reg [`INPUTOUTBIT-1:0] result,
+    output reg cal_done
+);
+
+    // State machine states
+    localparam IDLE = 3'b000;
+    localparam INPUT_A = 3'b001;
+    localparam INPUT_B = 3'b010;
+    localparam COMPUTE = 3'b011;
+    localparam WAIT_RESULT = 3'b100;
+    localparam OUTPUT = 3'b101;
+
+    reg [2:0] state;
+    reg [`INPUTOUTBIT-1:0] a_val;
+    reg [`INPUTOUTBIT-1:0] b_val;
+    reg [3:0] sw_reg;
+    wire [`INPUTOUTBIT-1:0] input_val;
+    wire input_done;
+    reg reset_input;
+    reg op_start;
+
+    // Synchronize input_done to fast clock domain
+    reg input_done_sync1, input_done_sync2, input_done_prev;
+    wire input_done_edge;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            input_done_sync1 <= 0;
+            input_done_sync2 <= 0;
+            input_done_prev <= 0;
+        end else begin
+            input_done_sync1 <= input_done;
+            input_done_sync2 <= input_done_sync1;
+            input_done_prev <= input_done_sync2;
+        end
+    end
+
+    assign input_done_edge = input_done_sync2 & ~input_done_prev;
+
+    // Operation module outputs
+    wire [`INPUTOUTBIT-1:0] add_result;
+    wire add_done;
+
+    // I/O Controller
+    input_output_controller io_ctrl (
+        .clk(clk),
+        .rst(rst),
+        .reset_input(reset_input),
+        .btn_left(btn_left),
+        .btn_right(btn_right),
+        .btn_up(btn_up),
+        .btn_down(btn_down),
+        .btn_mid(btn_mid),
+        .seg(seg),
+        .an(an),
+        .input_val(input_val),
+        .input_done(input_done)
+    );
+
+    // Operation Modules
+    add alu_add (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_ADD)),
+        .a(a_val),
+        .b(b_val),
+        .result(add_result),
+        .done(add_done)
+    );
+
+    sub alu_sub (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_SUB)),
+        .a(a_val),
+        .b(b_val),
+        .result(sub_result),
+        .done(sub_done)
+    );
+
+    // mul alu_mul (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_MUL)),
+    //     .a(a_val),
+    //     .b(b_val),
+    //     .result(mul_result),
+    //     .done(mul_done)
+    // );
+
+    // State machine
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            state <= IDLE;
+            a_val <= 0;
+            b_val <= 0;
+            sw_reg <= 0;
+            reset_input <= 0;
+            op_start <= 0;
+            result <= 0;
+            cal_done <= 0;
+        end else begin
+            reset_input <= 0;
+            op_start <= 0;
+            cal_done <= 0;
+
+            case (state)
+                IDLE: begin
+                    sw_reg <= sw;  // Latch the operation
+                    if (input_done_edge) begin
+                        a_val <= input_val;
+                        reset_input <= 1;
+                        // Check if operation needs one or two operands
+                        case (sw_reg)
+                            `OP_ADD, `OP_SUB, `OP_MUL, `OP_DIV, `OP_LOG, `OP_POW: begin
+                                // Two operand operations
+                                state <= INPUT_B;
+                            end
+                            `OP_SQRT, `OP_COS, `OP_SIN, `OP_TAN, `OP_ACOS, `OP_ASIN, `OP_ATAN, `OP_EXP, `OP_FAC: begin
+                                // Single operand operations
+                                state <= COMPUTE;
+                            end
+                            default: state <= INPUT_B;
+                        endcase
+                    end
+                end
+
+                INPUT_B: begin
+                    if (input_done_edge) begin
+                        b_val <= input_val;
+                        reset_input <= 1;
+                        state <= COMPUTE;
+                    end
+                end
+
+                COMPUTE: begin
+                    op_start <= 1;
+                    state <= WAIT_RESULT;
+                end
+
+                WAIT_RESULT: begin
+                    // Check which operation completed based on sw_reg
+                    case (sw_reg)
+                        `OP_ADD: begin
+                            if (add_done) begin
+                                result <= add_result;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_SUB: begin
+                            if (sub_done) begin
+                                result <= sub_result;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        // `OP_MUL: begin
+                        //     if (mul_done) begin
+                        //         result <= mul_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // Add more operations here as you implement them
+                        default: state <= IDLE;
+                    endcase
+                end
+
+                OUTPUT: begin
+                    // Hold result for one cycle
+                    cal_done <= 1;
+                    state <= IDLE;
+                end
+
+                default: state <= IDLE;
+            endcase
+        end
+    end
+
+endmodule

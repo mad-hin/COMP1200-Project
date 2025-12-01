@@ -27,11 +27,11 @@ module output_controller(
     output reg [6:0] seg,
     output reg [3:0] an
 );
-    reg [25:0] refresh_cnt;
+    reg [23:0] refresh_cnt;
     always @(posedge clk) refresh_cnt <= refresh_cnt + 1'b1;
 
     wire [1:0] mux_sel = refresh_cnt[18:17]; // scan digits fast enough
-    wire blink = refresh_cnt[25];
+    wire blink = refresh_cnt[23];
 
     wire is_selected = (mux_sel == current_digit);
 
