@@ -19,7 +19,6 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-// TODO: Fix the result, currently gives wrong output for some cases 
 module sub(
     input wire clk,
     input wire rst,

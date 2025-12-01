@@ -73,7 +73,7 @@ module alu(
     assign input_done_edge = input_done_sync2 & ~input_done_prev;
 
     // Operation module outputs
-    wire [`INPUTOUTBIT-1:0] add_result;
+    wire [`INPUTOUTBIT-1:0] add_result, sub_result; // , mul_result;
     wire add_done;
 
     // I/O Controller
