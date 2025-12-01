@@ -73,8 +73,8 @@ module alu(
     assign input_done_edge = input_done_sync2 & ~input_done_prev;
 
     // Operation module outputs
-    wire [`INPUTOUTBIT-1:0] add_result, sub_result; // , mul_result;
-    wire add_done;
+    wire [`INPUTOUTBIT-1:0] add_result, sub_result, mul_result, div_result, sqrt_result, cos_result, sin_result, tan_result, asin_result, acos_result, atan_result, exp_result, fac_result, log_result, pow_result;
+    wire add_done, sub_done, mul_done, div_done, sqrt_done, cos_done, sin_done, tan_done, asin_done, acos_done, atan_done, exp_done, fac_done, log_done, pow_done;
 
     // I/O Controller
     input_output_controller io_ctrl (
@@ -121,6 +121,117 @@ module alu(
     //     .b(b_val),
     //     .result(mul_result),
     //     .done(mul_done)
+    // );
+
+    // div alu_div (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_DIV)),
+    //     .a(a_val),
+    //     .b(b_val),
+    //     .result(div_result),
+    //     .done(div_done)
+    // );
+
+    // sqrt alu_sqrt (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_SQRT)),
+    //     .a(a_val),
+    //     .result(sqrt_result),
+    //     .done(sqrt_done)
+    // );
+
+    // cos alu_cos (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_COS)),
+    //     .a(a_val),
+    //     .result(cos_result),
+    //     .done(cos_done)
+    // );
+
+    // sin alu_sin (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_SIN)),
+    //     .a(a_val),
+    //     .result(sin_result),
+    //     .done(sin_done)
+    // );
+
+    // tan alu_tan (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_TAN)),
+    //     .a(a_val),
+    //     .result(tan_result),
+    //     .done(tan_done)
+    // );
+
+    // arcsin alu_asin (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_ASIN)),
+    //     .a(a_val),
+    //     .result(asin_result),
+    //     .done(asin_done)
+    // );
+
+    // arccos alu_acos (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_ACOS)),
+    //     .a(a_val),
+    //     .result(acos_result),
+    //     .done(acos_done)
+    // );
+
+    // arctan alu_atan (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_ATAN)),
+    //     .a(a_val),
+    //     .result(atan_result),
+    //     .done(atan_done)
+    // );
+
+    // exp alu_exp (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_EXP)),
+    //     .a(a_val),
+    //     .result(exp_result),
+    //     .done(exp_done)
+    // );
+
+    // fac alu_fac (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_FAC)),
+    //     .a(a_val),
+    //     .result(fac_result),
+    //     .done(fac_done)
+    // );
+
+    // log alu_log (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_LOG)),
+    //     .a(a_val),
+    //     .b(b_val),
+    //     .result(log_result),
+    //     .done(log_done)
+    // );
+
+    // pow alu_pow (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_POW)),
+    //     .a(a_val),
+    //     .b(b_val),
+    //     .result(pow_result),
+    //     .done(pow_done)
     // );
 
     // State machine
@@ -197,7 +308,91 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-                        // Add more operations here as you implement them
+                        // `OP_DIV: begin
+                        //     if (div_done) begin
+                        //         result <= div_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_SQRT: begin
+                        //     if (sqrt_done) begin
+                        //         result <= sqrt_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_COS: begin
+                        //     if (cos_done) begin
+                        //         result <= cos_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_SIN: begin
+                        //     if (sin_done) begin
+                        //         result <= sin_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_TAN: begin
+                        //     if (tan_done) begin
+                        //         result <= tan_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_ASIN: begin
+                        //     if (asin_done) begin
+                        //         result <= asin_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_ACOS: begin
+                        //     if (acos_done) begin
+                        //         result <= acos_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_ATAN: begin
+                        //     if (atan_done) begin
+                        //         result <= atan_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_EXP: begin
+                        //     if (exp_done) begin
+                        //         result <= exp_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_FAC: begin
+                        //     if (fac_done) begin
+                        //         result <= fac_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_LOG: begin
+                        //     if (log_done) begin
+                        //         result <= log_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        // `OP_POW: begin
+                        //     if (pow_done) begin
+                        //         result <= pow_result;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
+                        
                         default: state <= IDLE;
                     endcase
                 end
