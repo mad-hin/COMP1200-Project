@@ -33,7 +33,7 @@ module alu(
     input wire btn_mid,
     output wire [6:0] seg,
     output wire [3:0] an,
-    output reg [`INPUTOUTBIT-1:0] result,
+    output signed reg [`INPUTOUTBIT-1:0] result,
     output reg cal_done
 );
 
@@ -73,7 +73,7 @@ module alu(
     assign input_done_edge = input_done_sync2 & ~input_done_prev;
 
     // Operation module outputs
-    wire [`INPUTOUTBIT-1:0] add_result, sub_result, mul_result, div_result, sqrt_result, cos_result, sin_result, tan_result, asin_result, acos_result, atan_result, exp_result, fac_result, log_result, pow_result;
+    wire signed [`INPUTOUTBIT-1:0] add_result, sub_result, mul_result, div_result, sqrt_result, cos_result, sin_result, tan_result, asin_result, acos_result, atan_result, exp_result, fac_result, log_result, pow_result;
     wire add_done, sub_done, mul_done, div_done, sqrt_done, cos_done, sin_done, tan_done, asin_done, acos_done, atan_done, exp_done, fac_done, log_done, pow_done;
 
     // I/O Controller

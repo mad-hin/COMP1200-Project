@@ -70,6 +70,11 @@ module sin(
 
     // full precision |sin| scaled by 1e8
     reg  signed [31:0] sin_mag_1e8;
+    
+    // Postprocess temporary variables - moved to module level
+    reg signed [31:0] signed_full;
+    reg signed [31:0] rounded;
+    reg signed [31:0] milli;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -94,6 +99,9 @@ module sin(
             rem_shift     <= 64'd0;
 
             sin_mag_1e8   <= 32'sd0;
+            signed_full   <= 32'sd0;
+            rounded       <= 32'sd0;
+            milli         <= 32'sd0;
             result        <= {`INPUTOUTBIT{1'b0}};
             done          <= 1'b0;
         end else begin
@@ -168,10 +176,6 @@ module sin(
                 POSTPROCESS: begin
                     // Restore sign, then convert to milli-sine (round to nearest):
                     // sin_1e8 -> sin_1e3 = round(sin_1e8 / 1e5)
-                    reg signed [31:0] signed_full;
-                    reg signed [31:0] rounded;
-                    reg signed [31:0] milli;
-
                     signed_full = sign_flag ? -sin_mag_1e8 : sin_mag_1e8;
 
                     // Round-to-nearest with bias +/-50000 before /100000
