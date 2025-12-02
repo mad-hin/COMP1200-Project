@@ -33,7 +33,7 @@ module alu(
     input wire btn_mid,
     output wire [6:0] seg,
     output wire [3:0] an,
-    output signed reg [`INPUTOUTBIT-1:0] result,
+    output reg signed [`INPUTOUTBIT-1:0] result,
     output reg cal_done
 );
 
