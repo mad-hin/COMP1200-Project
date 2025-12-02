@@ -1,26 +1,4 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2025/12/02 02:07:18
-// Design Name: 
-// Module Name: sin
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: High-precision sine calculation based on Bhaskara I formula (no LUT)
-//              Formula: sin(x) ≈ 16x(π-x) / [5π² - 4x(π-x)], x ∈ [0,π]
-//              Accuracy: < 0.002% (far exceeds 5% project requirement)
-//              Resources: ~100 LUTs, 3 DSP48
-//              Latency: 4 cycles @ 300 MHz
-// 
-// Dependencies: define.vh
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+//`define INPUTOUTBIT 16
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -29,170 +7,279 @@ module sin(
     input  wire clk,
     input  wire rst,
     input  wire start,
-    input  wire signed [`INPUTOUTBIT-1:0] a,      // Input angle (degree)
-    output reg  signed [`INPUTOUTBIT-1:0] result, // Output = sin(angle)*1000 (milli-sine)
+    input  wire signed [`INPUTOUTBIT-1:0] a,
+    output reg  signed [`INPUTOUTBIT-1:0] result, // sin * 1e-4
     output reg  done
 );
-    localparam signed [31:0] SCALE_1E8 = 32'sd100000000;
-    localparam signed [15:0] DEG_180   = 16'sd180;
-    localparam signed [15:0] DEG_360   = 16'sd360;
-    localparam signed [31:0] DEN_CONST = 32'd40500;
+    localparam integer QSHIFT      = 29;
+    localparam integer MUL_LATENCY = 2; // cycles between mul_en and mul_pipe valid
 
-    localparam IDLE        = 3'b000;
-    localparam PREPROCESS  = 3'b001;
-    localparam CALC_TERMS  = 3'b010;
-    localparam DIVIDE      = 3'b011;
-    localparam POSTPROCESS = 3'b100;
+    localparam signed [15:0] DEG_180  = 16'sd180;
+    localparam signed [15:0] DEG_360  = 16'sd360;
+    localparam signed [15:0] DEG_90   = 16'sd90;
+    localparam signed [31:0] DEG2RAD_Q29 = 32'sd9370197;
 
-    reg [2:0] state;
+    localparam signed [31:0] COEF_C1 = 32'sd536870912;
+    localparam signed [31:0] COEF_C3 = -32'sd89478485;
+    localparam signed [31:0] COEF_C5 = 32'sd4473924;
+    localparam signed [31:0] COEF_C7 = -32'sd106177;
+    localparam signed [63:0] ROUND_CONST = 64'sd1 << (QSHIFT-1);
 
-    reg        sign_flag;
-    reg [15:0] angle_deg_abs;
-    reg [15:0] angle_deg_comp;
+    localparam [4:0]
+        IDLE        = 5'd0,
+        PRE_WRAP    = 5'd1,
+        PRE_SIGN    = 5'd2,
+        PRE_REF     = 5'd3,
+        RAD_CONV    = 5'd4,
+        X_LOAD      = 5'd5,
+        X_MUL       = 5'd6,
+        X_PIPE      = 5'd7,
+        HORNER3_LOAD= 5'd8,
+        HORNER3_MUL = 5'd9,
+        HORNER3_ACC = 5'd10,
+        HORNER2_LOAD= 5'd11,
+        HORNER2_MUL = 5'd12,
+        HORNER2_ACC = 5'd13,
+        HORNER1_LOAD= 5'd14,
+        HORNER1_MUL = 5'd15,
+        HORNER1_ACC = 5'd16,
+        FINAL_MUL   = 5'd17,
+        FINAL_PIPE  = 5'd18,
+        SCALE_LOAD  = 5'd19,
+        SCALE_EXEC  = 5'd20,
+        SCALE_SAVE  = 5'd21,
+        SCALE_ROUND = 5'd22,
+        SCALE_OUT   = 5'd23,
+        MUL_WAIT    = 5'd24;
 
-    // Bhaskara terms
-    reg [31:0] numerator;
-    reg [31:0] denominator;
+    reg [4:0] state, state_after_mul;
 
-    // temps
-    reg  signed [15:0] angle_norm;
-    reg  [15:0]        angle_abs;
-    reg  [31:0]        prod_local;
+    reg sign_flag;
+    reg signed [15:0] angle_norm;
+    reg signed [15:0] angle_abs;
+    reg signed [15:0] angle_ref_deg;
 
-    // 64/32 restoring divider (computes (numerator*SCALE_1E8)/denominator)
-    reg  [63:0] dividend_reg;
-    reg  [63:0] remainder_reg;
-    reg  [31:0] divisor_reg;
-    reg  [31:0] quotient_reg;
-    reg  [5:0]  div_cnt;
-    reg         div_active;
-    reg  [63:0] rem_shift;
+    reg signed [31:0] x_q;
+    reg signed [31:0] x2_q;
+    reg signed [31:0] poly_reg;
+    reg signed [31:0] sin_q;
+    reg signed [63:0] scale_prod;
+    reg signed [63:0] scale_round;
+    reg signed [31:0] milli_val;
 
-    // full precision |sin| scaled by 1e8
-    reg  signed [31:0] sin_mag_1e8;
-    
-    // Postprocess temporary variables - moved to module level
-    reg signed [31:0] signed_full;
-    reg signed [31:0] rounded;
-    reg signed [31:0] milli;
+    reg signed [31:0] mul_a_reg, mul_b_reg;
+    reg signed [31:0] mul_stage_a, mul_stage_b;
+    reg signed [31:0] mul_feed_a,  mul_feed_b;
+    reg               mul_en, mul_issue_d, mul_issue_q;
+    reg signed [63:0] mul_pipe;
+    reg [1:0]         mul_wait_cnt;
+
+    wire signed [31:0] mul_shr = mul_pipe >>> QSHIFT;
+    wire signed [15:0] angle_abs_sat = (angle_abs > DEG_180) ? DEG_180 : angle_abs;
+
+    // Three-stage shared multiplier (regs before DSP input)
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            mul_stage_a <= 32'sd0;
+            mul_stage_b <= 32'sd0;
+            mul_feed_a  <= 32'sd0;
+            mul_feed_b  <= 32'sd0;
+            mul_issue_d <= 1'b0;
+            mul_issue_q <= 1'b0;
+            mul_pipe    <= 64'sd0;
+        end else begin
+            mul_issue_d <= mul_en;
+            mul_issue_q <= mul_issue_d;
+
+            if (mul_en) begin
+                mul_stage_a <= mul_a_reg;
+                mul_stage_b <= mul_b_reg;
+            end
+            if (mul_issue_d) begin
+                mul_feed_a <= mul_stage_a;
+                mul_feed_b <= mul_stage_b;
+            end
+            if (mul_issue_q)
+                mul_pipe <= mul_feed_a * mul_feed_b;
+        end
+    end
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            state         <= IDLE;
-            sign_flag     <= 1'b0;
-            angle_deg_abs <= 16'd0;
-            angle_deg_comp<= 16'd180;
-
-            numerator     <= 32'd0;
-            denominator   <= 32'd1;
-
-            angle_norm    <= 16'sd0;
-            angle_abs     <= 16'd0;
-            prod_local    <= 32'd0;
-
-            dividend_reg  <= 64'd0;
-            remainder_reg <= 64'd0;
-            divisor_reg   <= 32'd1;
-            quotient_reg  <= 32'd0;
-            div_cnt       <= 6'd0;
-            div_active    <= 1'b0;
-            rem_shift     <= 64'd0;
-
-            sin_mag_1e8   <= 32'sd0;
-            signed_full   <= 32'sd0;
-            rounded       <= 32'sd0;
-            milli         <= 32'sd0;
-            result        <= {`INPUTOUTBIT{1'b0}};
-            done          <= 1'b0;
+            state           <= IDLE;
+            state_after_mul <= IDLE;
+            mul_wait_cnt    <= 0;
+            sign_flag       <= 1'b0;
+            angle_norm      <= 16'sd0;
+            angle_abs       <= 16'sd0;
+            angle_ref_deg   <= 16'sd0;
+            x_q             <= 32'sd0;
+            x2_q            <= 32'sd0;
+            poly_reg        <= 32'sd0;
+            sin_q           <= 32'sd0;
+            scale_prod      <= 64'sd0;
+            scale_round     <= 64'sd0;
+            milli_val       <= 32'sd0;
+            mul_a_reg       <= 32'sd0;
+            mul_b_reg       <= 32'sd0;
+            mul_en          <= 1'b0;
+            result          <= 0;
+            done            <= 0;
         end else begin
-            done <= 1'b0;
+            mul_en <= 1'b0;
+            done   <= 1'b0;
 
             case (state)
                 IDLE: begin
-                    if (start) state <= PREPROCESS;
+                    if (start) state <= PRE_WRAP;
                 end
 
-                PREPROCESS: begin
-                    // Normalize to [-180, 180]
-                    angle_norm = a;
-                    if (angle_norm >  DEG_180)  angle_norm = angle_norm - DEG_360;
-                    else if (angle_norm < -DEG_180) angle_norm = angle_norm + DEG_360;
+                PRE_WRAP: begin
+                    if (a >  DEG_180)      angle_norm <= a - DEG_360;
+                    else if (a < -DEG_180) angle_norm <= a + DEG_360;
+                    else                   angle_norm <= a;
+                    state <= PRE_SIGN;
+                end
 
-                    // Extract sign and abs
+                PRE_SIGN: begin
                     sign_flag <= (angle_norm < 0);
-                    angle_abs = angle_norm[15] ? (16'sd0 - angle_norm) : angle_norm;
-                    if (angle_abs > DEG_180) angle_abs = DEG_180;
-
-                    // Prepare Bhaskara terms
-                    angle_deg_abs  <= angle_abs;
-                    angle_deg_comp <= DEG_180 - angle_abs;
-
-                    state <= CALC_TERMS;
+                    angle_abs <= angle_norm[15] ? (16'sd0 - angle_norm) : angle_norm;
+                    state <= PRE_REF;
                 end
 
-                CALC_TERMS: begin
-                    // prod = theta * (180 - theta)
-                    prod_local  = angle_deg_abs * angle_deg_comp;
-                    numerator   <= prod_local << 4;         // 16·θ·(180-θ)
-                    denominator <= DEN_CONST - prod_local;  // 40500-θ·(180-θ)
-                    div_active  <= 1'b0;
-                    state       <= DIVIDE;
-                end
-
-                DIVIDE: begin
-                    if (!div_active) begin
-                        // Start 64/32 restore division of (numerator*SCALE_1E8)/denominator
-                        divisor_reg   <= (denominator == 0) ? 32'd1 : denominator;
-                        dividend_reg  <= $unsigned(numerator) * $unsigned(SCALE_1E8);
-                        remainder_reg <= 64'd0;
-                        quotient_reg  <= 32'd0;
-                        div_cnt       <= 6'd32;
-                        div_active    <= 1'b1;
-                    end else begin
-                        rem_shift      = {remainder_reg[62:0], dividend_reg[63]};
-                        dividend_reg   <= {dividend_reg[62:0], 1'b0};
-
-                        if (rem_shift >= {32'd0, divisor_reg}) begin
-                            remainder_reg <= rem_shift - {32'd0, divisor_reg};
-                            quotient_reg  <= {quotient_reg[30:0], 1'b1};
-                        end else begin
-                            remainder_reg <= rem_shift;
-                            quotient_reg  <= {quotient_reg[30:0], 1'b0};
-                        end
-
-                        div_cnt <= div_cnt - 1'b1;
-                        if (div_cnt == 6'd1) begin
-                            div_active  <= 1'b0;
-                            // Clamp |sin|*1e8 into [0, 1e8]
-                            if ($signed(quotient_reg) > SCALE_1E8)
-                                sin_mag_1e8 <= SCALE_1E8;
-                            else
-                                sin_mag_1e8 <= $signed(quotient_reg);
-                            state <= POSTPROCESS;
-                        end
-                    end
-                end
-
-                POSTPROCESS: begin
-                    // Restore sign, then convert to milli-sine (round to nearest):
-                    // sin_1e8 -> sin_1e3 = round(sin_1e8 / 1e5)
-                    signed_full = sign_flag ? -sin_mag_1e8 : sin_mag_1e8;
-
-                    // Round-to-nearest with bias +/-50000 before /100000
-                    if (signed_full >= 0)
-                        rounded = signed_full + 32'sd50000;
+                PRE_REF: begin
+                    angle_abs <= angle_abs_sat;
+                    if (angle_abs_sat > DEG_90)
+                        angle_ref_deg <= DEG_180 - angle_abs_sat;
                     else
-                        rounded = signed_full - 32'sd50000;
+                        angle_ref_deg <= angle_abs_sat;
+                    state <= RAD_CONV;
+                end
 
-                    milli = rounded / 32'sd100000;  // result in [-1000, 1000]
+                RAD_CONV: begin
+                    x_q   <= angle_ref_deg * DEG2RAD_Q29;
+                    state <= X_LOAD;
+                end
 
-                    // Saturate into 16-bit signed just for safety
-                    if (milli > 32'sd32767)      result <= 16'sd32767;
-                    else if (milli < -32'sd32768) result <= -16'sd32768;
-                    else                          result <= milli[`INPUTOUTBIT-1:0];
+                X_LOAD: begin
+                    mul_a_reg <= x_q;
+                    mul_b_reg <= x_q;
+                    state     <= X_MUL;
+                end
 
+                X_MUL: begin
+                    mul_en          <= 1'b1;
+                    mul_wait_cnt    <= MUL_LATENCY;
+                    state_after_mul <= X_PIPE;
+                    state           <= MUL_WAIT;
+                end
+
+                X_PIPE: begin
+                    x2_q  <= mul_shr;
+                    state <= HORNER3_LOAD;
+                end
+
+                HORNER3_LOAD: begin
+                    poly_reg  <= COEF_C7;
+                    mul_a_reg <= x2_q;
+                    mul_b_reg <= COEF_C7;
+                    state     <= HORNER3_MUL;
+                end
+
+                HORNER3_MUL: begin
+                    mul_en          <= 1'b1;
+                    mul_wait_cnt    <= MUL_LATENCY;
+                    state_after_mul <= HORNER3_ACC;
+                    state           <= MUL_WAIT;
+                end
+
+                HORNER3_ACC: begin
+                    poly_reg  <= COEF_C5 + mul_shr;
+                    mul_a_reg <= x2_q;
+                    mul_b_reg <= COEF_C5 + mul_shr;
+                    state     <= HORNER2_MUL;
+                end
+
+                HORNER2_MUL: begin
+                    mul_en          <= 1'b1;
+                    mul_wait_cnt    <= MUL_LATENCY;
+                    state_after_mul <= HORNER2_ACC;
+                    state           <= MUL_WAIT;
+                end
+
+                HORNER2_ACC: begin
+                    poly_reg  <= COEF_C3 + mul_shr;
+                    mul_a_reg <= x2_q;
+                    mul_b_reg <= COEF_C3 + mul_shr;
+                    state     <= HORNER1_MUL;
+                end
+
+                HORNER1_MUL: begin
+                    mul_en          <= 1'b1;
+                    mul_wait_cnt    <= MUL_LATENCY;
+                    state_after_mul <= HORNER1_ACC;
+                    state           <= MUL_WAIT;
+                end
+
+                HORNER1_ACC: begin
+                    poly_reg  <= COEF_C1 + mul_shr;
+                    mul_a_reg <= x_q;
+                    mul_b_reg <= COEF_C1 + mul_shr;
+                    state     <= FINAL_MUL;
+                end
+
+                FINAL_MUL: begin
+                    mul_en          <= 1'b1;
+                    mul_wait_cnt    <= MUL_LATENCY;
+                    state_after_mul <= FINAL_PIPE;
+                    state           <= MUL_WAIT;
+                end
+
+                FINAL_PIPE: begin
+                    sin_q <= mul_shr;
+                    state <= SCALE_LOAD;
+                end
+
+                SCALE_LOAD: begin
+                    mul_a_reg <= sign_flag ? -sin_q : sin_q;
+                    mul_b_reg <= 32'sd10000;
+                    state     <= SCALE_EXEC;
+                end
+
+                SCALE_EXEC: begin
+                    mul_en          <= 1'b1;
+                    mul_wait_cnt    <= MUL_LATENCY;
+                    state_after_mul <= SCALE_SAVE;
+                    state           <= MUL_WAIT;
+                end
+
+                SCALE_SAVE: begin
+                    scale_prod <= mul_pipe;
+                    state      <= SCALE_ROUND;
+                end
+
+                SCALE_ROUND: begin
+                    scale_round <= (scale_prod >= 0) ? (scale_prod + ROUND_CONST)
+                                                     : (scale_prod - ROUND_CONST);
+                    state <= SCALE_OUT;
+                end
+
+                SCALE_OUT: begin
+                    milli_val = scale_round >>> QSHIFT;
+                    if      (milli_val >  32'sd32767) result <= 16'sd32767;
+                    else if (milli_val < -32'sd32768) result <= -16'sd32768;
+                    else                              result <= milli_val[`INPUTOUTBIT-1:0];
                     done  <= 1'b1;
                     state <= IDLE;
+                end
+
+                MUL_WAIT: begin
+                    if (mul_wait_cnt <= 1) begin
+                        mul_wait_cnt <= 0;
+                        state        <= state_after_mul;
+                    end else begin
+                        mul_wait_cnt <= mul_wait_cnt - 1;
+                    end
                 end
 
                 default: state <= IDLE;
