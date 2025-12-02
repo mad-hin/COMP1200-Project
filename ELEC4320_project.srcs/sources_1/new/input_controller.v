@@ -25,7 +25,7 @@
 module input_controller(
     input clk, rst, bnt_left, bnt_right, bnt_up, bnt_down, btn_mid,
     output reg [1:0] current_digit,
-    output reg [`INPUTOUTBIT - 1 :0] input_val,
+    output reg signed [`INPUTOUTBIT - 1 :0] input_val,
     output reg [12:0] display_input, // 1st bit is sign, next every 4 bits is a digit, i.e. {sign, hundreds, tens, units}
     output reg input_done 
     );

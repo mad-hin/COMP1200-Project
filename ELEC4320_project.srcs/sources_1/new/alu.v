@@ -46,10 +46,10 @@ module alu(
     localparam OUTPUT = 3'b101;
 
     reg [2:0] state;
-    reg [`INPUTOUTBIT-1:0] a_val;
-    reg [`INPUTOUTBIT-1:0] b_val;
+    reg signed [`INPUTOUTBIT-1:0] a_val;
+    reg signed [`INPUTOUTBIT-1:0] b_val;
     reg [3:0] sw_reg;
-    wire [`INPUTOUTBIT-1:0] input_val;
+    wire signed [`INPUTOUTBIT-1:0] input_val;
     wire input_done;
     reg reset_input;
     reg op_start;
