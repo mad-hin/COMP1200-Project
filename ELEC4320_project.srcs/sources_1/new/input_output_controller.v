@@ -35,7 +35,7 @@ module input_output_controller(
     output wire [3:0] an,
 
     // Returned input value (packed as defined in define.vh)
-    output wire [`INPUTOUTBIT-1:0] input_val,
+    output wire signed [`INPUTOUTBIT-1:0] input_val,
     output wire input_done
 );
     // Generate slower clock for input controller (100MHz from 300MHz)

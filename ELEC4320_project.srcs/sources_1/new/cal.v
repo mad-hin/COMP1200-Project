@@ -37,7 +37,7 @@ module cal(
     output wire [3:0] an,
     output wire [15:0] led
 );
-    wire [`INPUTOUTBIT-1:0] result;
+    wire signed [`INPUTOUTBIT-1:0] result;
     wire cal_done;
     // TODO: Add arithmetic operation modules here
     // - Use sw[3:0] to select operation

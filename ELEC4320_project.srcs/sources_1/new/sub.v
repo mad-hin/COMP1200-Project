@@ -23,9 +23,9 @@ module sub(
     input wire clk,
     input wire rst,
     input wire start,
-    input wire [`INPUTOUTBIT-1:0] a,
-    input wire [`INPUTOUTBIT-1:0] b,
-    output reg [`INPUTOUTBIT-1:0] result,
+    input wire signed [`INPUTOUTBIT-1:0] a,
+    input wire signed [`INPUTOUTBIT-1:0] b,
+    output reg signed [`INPUTOUTBIT-1:0] result,
     output reg done
 );
     always @(posedge clk or posedge rst) begin
