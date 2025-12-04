@@ -33,7 +33,8 @@ module alu(
     input wire btn_mid,
     output wire [6:0] seg,
     output wire [3:0] an,
-    output reg signed [`INPUTOUTBIT-1:0] result,
+    output reg [`INPUTOUTBIT-1:0] result, // IEEE754 floating point output
+    output reg error, // 1 = have error, 0 = no error
     output reg cal_done
 );
 
@@ -73,8 +74,9 @@ module alu(
     assign input_done_edge = input_done_sync2 & ~input_done_prev;
 
     // Operation module outputs
-    wire signed [`INPUTOUTBIT-1:0] add_result, sub_result, mul_result, div_result, sqrt_result, cos_result, sin_result, tan_result, asin_result, acos_result, atan_result, exp_result, fac_result, log_result, pow_result;
+    wire [`INPUTOUTBIT-1:0] add_result, sub_result, mul_result, div_result, sqrt_result, cos_result, sin_result, tan_result, asin_result, acos_result, atan_result, exp_result, fac_result, log_result, pow_result;
     wire add_done, sub_done, mul_done, div_done, sqrt_done, cos_done, sin_done, tan_done, asin_done, acos_done, atan_done, exp_done, fac_done, log_done, pow_done;
+    wire add_error, sub_error, mul_error, div_error, sqrt_error, cos_error, sin_error, tan_error, asin_error, acos_error, atan_error, exp_error, fac_error, log_error, pow_error;
 
     // I/O Controller
     input_output_controller io_ctrl (
@@ -100,6 +102,7 @@ module alu(
         .a(a_val),
         .b(b_val),
         .result(add_result),
+        .error(add_error),
         .done(add_done)
     );
 
@@ -110,6 +113,7 @@ module alu(
         .a(a_val),
         .b(b_val),
         .result(sub_result),
+        .error(sub_error),
         .done(sub_done)
     );
 
@@ -120,6 +124,7 @@ module alu(
     //     .a(a_val),
     //     .b(b_val),
     //     .result(mul_result),
+    //     .error(mul_error),
     //     .done(mul_done)
     // );
 
@@ -130,6 +135,7 @@ module alu(
     //     .a(a_val),
     //     .b(b_val),
     //     .result(div_result),
+    //     .error(div_error),
     //     .done(div_done)
     // );
 
@@ -139,6 +145,7 @@ module alu(
     //     .start(op_start && (sw_reg == `OP_SQRT)),
     //     .a(a_val),
     //     .result(sqrt_result),
+    //     .error(sqrt_error),
     //     .done(sqrt_done)
     // );
 
@@ -148,6 +155,7 @@ module alu(
     //     .start(op_start && (sw_reg == `OP_COS)),
     //     .a(a_val),
     //     .result(cos_result),
+    //     .error(cos_error),
     //     .done(cos_done)
     // );
 
@@ -157,6 +165,7 @@ module alu(
         .start(op_start && (sw_reg == `OP_SIN)),
         .a(a_val),
         .result(sin_result),
+        .error(sin_error),
         .done(sin_done)
     );
 
@@ -166,6 +175,7 @@ module alu(
     //     .start(op_start && (sw_reg == `OP_TAN)),
     //     .a(a_val),
     //     .result(tan_result),
+    //     .error(tan_error),
     //     .done(tan_done)
     // );
 
@@ -175,6 +185,7 @@ module alu(
     //     .start(op_start && (sw_reg == `OP_ASIN)),
     //     .a(a_val),
     //     .result(asin_result),
+    //     .error(asin_error),
     //     .done(asin_done)
     // );
 
@@ -184,6 +195,7 @@ module alu(
     //     .start(op_start && (sw_reg == `OP_ACOS)),
     //     .a(a_val),
     //     .result(acos_result),
+    //     .error(acos_error),
     //     .done(acos_done)
     // );
 
@@ -193,6 +205,7 @@ module alu(
     //     .start(op_start && (sw_reg == `OP_ATAN)),
     //     .a(a_val),
     //     .result(atan_result),
+    //     .error(atan_error),
     //     .done(atan_done)
     // );
 
@@ -202,6 +215,7 @@ module alu(
     //     .start(op_start && (sw_reg == `OP_EXP)),
     //     .a(a_val),
     //     .result(exp_result),
+    //     .error(exp_error),
     //     .done(exp_done)
     // );
 
@@ -211,6 +225,7 @@ module alu(
     //     .start(op_start && (sw_reg == `OP_FAC)),
     //     .a(a_val),
     //     .result(fac_result),
+    //     .error(fac_error),
     //     .done(fac_done)
     // );
 
@@ -221,6 +236,7 @@ module alu(
     //     .a(a_val),
     //     .b(b_val),
     //     .result(log_result),
+    //     .error(log_error),
     //     .done(log_done)
     // );
 
@@ -231,6 +247,7 @@ module alu(
     //     .a(a_val),
     //     .b(b_val),
     //     .result(pow_result),
+    //     .error(pow_error),
     //     .done(pow_done)
     // );
 
@@ -290,6 +307,7 @@ module alu(
                         `OP_ADD: begin
                             if (add_done) begin
                                 result <= add_result;
+                                error <= add_error;
                                 cal_done <= 1;
                                 state <= OUTPUT;
                             end
@@ -297,6 +315,7 @@ module alu(
                         `OP_SUB: begin
                             if (sub_done) begin
                                 result <= sub_result;
+                                error <= sub_error;
                                 cal_done <= 1;
                                 state <= OUTPUT;
                             end
@@ -304,6 +323,7 @@ module alu(
                         // `OP_MUL: begin
                         //     if (mul_done) begin
                         //         result <= mul_result;
+                        //         error <= mul_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -311,6 +331,7 @@ module alu(
                         // `OP_DIV: begin
                         //     if (div_done) begin
                         //         result <= div_result;
+                        //         error <= div_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -318,6 +339,7 @@ module alu(
                         // `OP_SQRT: begin
                         //     if (sqrt_done) begin
                         //         result <= sqrt_result;
+                        //         error <= sqrt_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -325,6 +347,7 @@ module alu(
                         // `OP_COS: begin
                         //     if (cos_done) begin
                         //         result <= cos_result;
+                        //         error <= cos_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -332,6 +355,7 @@ module alu(
                         `OP_SIN: begin
                             if (sin_done) begin
                                 result <= sin_result;
+                                error <= sin_error;
                                 cal_done <= 1;
                                 state <= OUTPUT;
                             end
@@ -339,6 +363,7 @@ module alu(
                         // `OP_TAN: begin
                         //     if (tan_done) begin
                         //         result <= tan_result;
+                        //         error <= tan_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -346,6 +371,7 @@ module alu(
                         // `OP_ASIN: begin
                         //     if (asin_done) begin
                         //         result <= asin_result;
+                        //         error <= asin_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -353,6 +379,7 @@ module alu(
                         // `OP_ACOS: begin
                         //     if (acos_done) begin
                         //         result <= acos_result;
+                        //         error <= acos_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -360,6 +387,7 @@ module alu(
                         // `OP_ATAN: begin
                         //     if (atan_done) begin
                         //         result <= atan_result;
+                        //         error <= atan_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -367,6 +395,7 @@ module alu(
                         // `OP_EXP: begin
                         //     if (exp_done) begin
                         //         result <= exp_result;
+                        //         error <= exp_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -374,6 +403,7 @@ module alu(
                         // `OP_FAC: begin
                         //     if (fac_done) begin
                         //         result <= fac_result;
+                        //         error <= fac_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -381,6 +411,7 @@ module alu(
                         // `OP_LOG: begin
                         //     if (log_done) begin
                         //         result <= log_result;
+                        //         error <= log_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
@@ -388,6 +419,7 @@ module alu(
                         // `OP_POW: begin
                         //     if (pow_done) begin
                         //         result <= pow_result;
+                        //         error <= pow_error;
                         //         cal_done <= 1;
                         //         state <= OUTPUT;
                         //     end
