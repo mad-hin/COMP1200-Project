@@ -1,192 +1,206 @@
 //`define INPUTOUTBIT 32
-// 输入的数字一定是整数，是-999到999的整数
-// 输出得有八位有效数字 
+
+// 要求
+// 输入：整数，-999至999，角度制
+// 输出格式：十进制，带符号，科学计数法，八位有效数字
+// module里的注释用英文
+// 不可以用IP和LUT
+// 只要不是直接查表输出答案就不算用LUT
+// 用霍纳多项式算法似乎能做到（有bug），git-69d1e046be72fa7ad36474690a8befeaf5be5a8b
+// 现在在尝试CORDIC算法
+
 
 `timescale 1ns / 1ps
 `include "define.vh"
 
+(* keep_hierarchy = "no" *)
 module sin(
     input  wire clk,
     input  wire rst,
     input  wire start,
     input  wire signed [`INPUTOUTBIT-1:0] a,
-    output reg  signed [`INPUTOUTBIT-1:0] result, // sin in Q24.8 format
+    output reg  signed [`INPUTOUTBIT-1:0] result, // Q24.8
     output reg  done
 );
-    localparam integer QSHIFT      = 8;  // Changed to 8 for 8 fractional bits
-    localparam integer MUL_LATENCY = 2;
+    // Fixed-point and iteration settings
+    localparam integer QSHIFT     = 8;      // Q24.8 fractional bits
+    localparam integer ITERATIONS = 12;     // CORDIC iterations
 
-    localparam signed [15:0] DEG_180  = 16'sd180;
-    localparam signed [15:0] DEG_360  = 16'sd360;
-    localparam signed [15:0] DEG_90   = 16'sd90;
-    localparam signed [31:0] DEG2RAD_Q8 = 32'sd4;  // Approx π/180 * 2^8
-
-    // Coefficients refitted for Q8 (original Q29 shifted and adjusted)
-    localparam signed [31:0] COEF_C1 = 32'sd33554432;   // Approx 1.0 * 2^8
-    localparam signed [31:0] COEF_C3 = -32'sd5592405;   // Approx -0.166666 * 2^8
-    localparam signed [31:0] COEF_C5 = 32'sd279620;     // Approx 0.008333 * 2^8
-    localparam signed [31:0] COEF_C7 = -32'sd6605;      // Approx -0.000198 * 2^8
-    localparam signed [63:0] ROUND_CONST = 64'sd1 << (QSHIFT-1);
-
-    localparam [4:0]
-        IDLE        = 5'd0,
-        PRE_WRAP    = 5'd1,
-        PRE_SIGN    = 5'd2,
-        PRE_REF     = 5'd3,
-        RAD_CONV    = 5'd4,
-        X_LOAD      = 5'd5,
-        X_MUL       = 5'd6,
-        X_PIPE      = 5'd7,
-        HORNER3_LOAD= 5'd8,
-        HORNER3_MUL = 5'd9,
-        HORNER3_ACC = 5'd10,
-        HORNER2_LOAD= 5'd11,
-        HORNER2_MUL = 5'd12,
-        HORNER2_ACC = 5'd13,
-        HORNER1_LOAD= 5'd14,
-        HORNER1_MUL = 5'd15,
-        HORNER1_ACC = 5'd16,
-        FINAL_MUL   = 5'd17,
-        FINAL_PIPE  = 5'd18,
-        SCALE_LOAD  = 5'd19,
-        SCALE_EXEC  = 5'd20,
-        SCALE_SAVE  = 5'd21,
-        SCALE_ROUND = 5'd22,
-        SCALE_OUT   = 5'd23,
-        MUL_WAIT    = 5'd24;
-
-    reg [4:0] state, state_after_mul;
-
-    reg sign_flag;
-    reg signed [15:0] angle_norm;  // Optimized to 16-bit for -999 to 999 input
-    reg signed [15:0] angle_abs;
-    reg signed [15:0] angle_ref_deg;
-
-    reg signed [31:0] x_q;
-    reg signed [31:0] x2_q;
-    reg signed [31:0] poly_reg;
-    reg signed [31:0] sin_q;
-    reg signed [63:0] scale_prod;
-    reg signed [63:0] scale_round;
-    reg signed [31:0] milli_val;
-
-    reg signed [31:0] mul_a_reg, mul_b_reg;
-    reg signed [31:0] mul_stage_a, mul_stage_b;
-    reg signed [31:0] mul_feed_a,  mul_feed_b;
-    reg               mul_en, mul_issue_d, mul_issue_q;
-    reg signed [63:0] mul_pipe;
-    reg [1:0]         mul_wait_cnt;
-
-    wire signed [31:0] mul_shr = mul_pipe >>> QSHIFT;
-    wire signed [15:0] angle_abs_sat = (angle_abs > DEG_180) ? DEG_180 : angle_abs;
-
-    // Three-stage shared multiplier (unchanged)
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            mul_stage_a <= 32'sd0;
-            mul_stage_b <= 32'sd0;
-            mul_feed_a  <= 32'sd0;
-            mul_feed_b  <= 32'sd0;
-            mul_issue_d <= 1'b0;
-            mul_issue_q <= 1'b0;
-            mul_pipe    <= 64'sd0;
-        end else begin
-            mul_issue_d <= mul_en;
-            mul_issue_q <= mul_issue_d;
-            if (mul_en) begin
-                mul_stage_a <= mul_a_reg;
-                mul_stage_b <= mul_b_reg;
-            end
-            if (mul_issue_d) begin
-                mul_feed_a <= mul_stage_a;
-                mul_feed_b <= mul_stage_b;
-            end
-            if (mul_issue_q)
-                mul_pipe <= mul_feed_a * mul_feed_b;
-        end
+    // CORDIC angle table: atan(2^-i) in degree (Q8). Algorithm constants (not function LUT).
+    reg signed [31:0] ATAN_TABLE [0:11];
+    initial begin
+        ATAN_TABLE[0]  = 32'sd11520;  // 45.000° * 256
+        ATAN_TABLE[1]  = 32'sd6801;   // 26.565°
+        ATAN_TABLE[2]  = 32'sd3593;   // 14.036°
+        ATAN_TABLE[3]  = 32'sd1824;   // 7.125°
+        ATAN_TABLE[4]  = 32'sd915;    // 3.576°
+        ATAN_TABLE[5]  = 32'sd458;    // 1.789°
+        ATAN_TABLE[6]  = 32'sd229;    // 0.895°
+        ATAN_TABLE[7]  = 32'sd114;    // 0.448°
+        ATAN_TABLE[8]  = 32'sd57;     // 0.224°
+        ATAN_TABLE[9]  = 32'sd29;     // 0.112°
+        ATAN_TABLE[10] = 32'sd14;     // 0.056°
+        ATAN_TABLE[11] = 32'sd7;      // 0.028°
     end
 
+    // CORDIC gain K ≈ 0.607252935 -> Q8 ≈ 155
+    localparam signed [31:0] CORDIC_GAIN = 32'sd155;
+
+    // Degree constants
+    localparam signed [15:0] DEG_180 = 16'sd180;
+    localparam signed [15:0] DEG_360 = 16'sd360;
+    localparam signed [15:0] DEG_90  = 16'sd90;
+
+    // FSM states
+    localparam [3:0]
+        IDLE          = 4'd0,
+        PRE_NORM_CMP  = 4'd1, // compare & candidates
+        INIT          = 4'd2,
+        ITER_SHIFT    = 4'd3, // shift-only + fetch atan
+        ITER_ADD      = 4'd4, // add/sub with latched operands
+        SCALE_EXTEND  = 4'd5, // sign-extend only
+        SCALE_NEGATE  = 4'd6, // negate if needed
+        OUTPUT        = 4'd7,
+        PRE_NORM_SEL  = 4'd8; // select normalized angle
+
+    reg [3:0] state;
+    reg [3:0] iter_cnt;
+
+    // Input and quadrant handling
+    reg signed [15:0] a16_q;                 // 16-bit latched input
+    reg               sign_flag;             // final sign
+    reg signed [15:0] angle_norm, angle_work;// normalized angle and first-quadrant angle
+
+    // Pre-normalization pipeline regs (to split compare/add from selection)
+    reg               a_gt180, a_lt180;
+    reg signed [15:0] a_sub360, a_add360;
+
+    // Data path: x/y use 24-bit Q8 to shorten CARRY chains; z uses 18-bit Q8 (covers ±180*256)
+    reg signed [23:0] x, y;
+    reg signed [17:0] z;
+
+    // Two-cycle pipeline temporaries
+    reg signed [23:0] x_shift, y_shift;      // shifted values
+    reg signed [17:0] atan_d;                // fetched atan constant (Q8)
+    reg               z_ge0;                 // latched sign of z (z >= 0)
+
+    // Intermediate register for sign extension
+    reg signed [31:0] y_extended;
+
+    // Main sequential logic
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            state           <= IDLE;
-            state_after_mul <= IDLE;
-            mul_wait_cnt    <= 0;
-            sign_flag       <= 1'b0;
-            angle_norm      <= 16'sd0;
-            angle_abs       <= 16'sd0;
-            angle_ref_deg   <= 16'sd0;
-            x_q             <= 32'sd0;
-            x2_q            <= 32'sd0;
-            poly_reg        <= 32'sd0;
-            sin_q           <= 32'sd0;
-            scale_prod      <= 64'sd0;
-            scale_round     <= 64'sd0;
-            milli_val       <= 32'sd0;
-            mul_a_reg       <= 32'sd0;
-            mul_b_reg       <= 32'sd0;
-            mul_en          <= 1'b0;
-            result          <= 0;
-            done            <= 0;
-        end else begin
-            mul_en <= 1'b0;
+            state      <= IDLE;
+            iter_cnt   <= 4'd0;
+            a16_q      <= 16'sd0;
+            sign_flag  <= 1'b0;
+            angle_norm <= 16'sd0;
+            angle_work <= 16'sd0;
+
+            a_gt180    <= 1'b0;
+            a_lt180    <= 1'b0;
+            a_sub360   <= 16'sd0;
+            a_add360   <= 16'sd0;
+
+            x <= 24'sd0; y <= 24'sd0;
+            z <= 18'sd0;
+            x_shift <= 24'sd0; y_shift <= 24'sd0;
+            atan_d  <= 18'sd0;
+            z_ge0   <= 1'b0;
+
+            y_extended <= 32'sd0;
+            result <= 32'sd0;
             done   <= 1'b0;
+        end else begin
+            done <= 1'b0;
 
             case (state)
                 IDLE: begin
-                    if (start) state <= PRE_WRAP;
-                end
-
-                PRE_WRAP: begin
-                    // Normalize input angle (integer) to -180 to 180
-                    if (a >  DEG_180)      angle_norm <= a - DEG_360;
-                    else if (a < -DEG_180) angle_norm <= a + DEG_360;
-                    else                   angle_norm <= a[15:0];  // Truncate to 16-bit
-                    state <= PRE_SIGN;
-                end
-
-                PRE_SIGN: begin
-                    sign_flag <= (angle_norm < 0);
-                    angle_abs <= angle_norm[15] ? (16'sd0 - angle_norm) : angle_norm;
-                    state <= PRE_REF;
-                end
-
-                PRE_REF: begin
-                    angle_abs <= angle_abs_sat;
-                    if (angle_abs_sat > DEG_90)
-                        angle_ref_deg <= DEG_180 - angle_abs_sat;
-                    else
-                        angle_ref_deg <= angle_abs_sat;
-                    state <= RAD_CONV;
-                end
-
-                RAD_CONV: begin
-                    x_q   <= angle_ref_deg * DEG2RAD_Q8;  // Integer multiply
-                    state <= X_LOAD;
-                end
-
-                // ... (rest of states unchanged, but SCALE_LOAD uses 256 for Q8 scaling)
-
-                SCALE_LOAD: begin
-                    mul_a_reg <= sign_flag ? -sin_q : sin_q;
-                    mul_b_reg <= 32'sd256;  // 2^8 for Q8 scaling
-                    state     <= SCALE_EXEC;
-                end
-
-                // ... (SCALE_EXEC to SCALE_OUT unchanged, output is Q24.8)
-
-                SCALE_OUT: begin
-                    result <= milli_val[`INPUTOUTBIT-1:0];  // Now Q24.8
-                    done   <= 1'b1;
-                    state  <= IDLE;
-                end
-
-                MUL_WAIT: begin
-                    if (mul_wait_cnt <= 1) begin
-                        mul_wait_cnt <= 0;
-                        state        <= state_after_mul;
-                    end else begin
-                        mul_wait_cnt <= mul_wait_cnt - 1;
+                    if (start) begin
+                        // Latch and truncate input to 16-bit to reduce comparator/adder width
+                        a16_q <= $signed(a[15:0]);
+                        state <= PRE_NORM_CMP;
                     end
+                end
+
+                PRE_NORM_CMP: begin
+                    // Cycle 1: compute compares and candidate results (all locally registered)
+                    a_gt180  <= (a16_q >  DEG_180);
+                    a_lt180  <= (a16_q < -DEG_180);
+                    a_sub360 <= a16_q - DEG_360;
+                    a_add360 <= a16_q + DEG_360;
+                    state    <= PRE_NORM_SEL;
+                end
+
+                PRE_NORM_SEL: begin
+                    // Cycle 2: select normalized angle (short combinational path)
+                    if      (a_gt180) angle_norm <= a_sub360;
+                    else if (a_lt180) angle_norm <= a_add360;
+                    else              angle_norm <= a16_q;
+                    state <= INIT;
+                end
+
+                INIT: begin
+                    // Map to first quadrant and record sign
+                    sign_flag  <= (angle_norm < 0);
+                    angle_work <= angle_norm[15] ? -angle_norm : angle_norm;
+                    if (angle_work > DEG_90) angle_work <= (DEG_180 - angle_work);
+
+                    // Initialize vector and angle in Q8
+                    // x0 = K<<Q (Q8), y0 = 0; z0 = angle<<Q (Q8, kept in 18-bit)
+                    x <= $signed(CORDIC_GAIN) <<< QSHIFT; // 155<<8 = 39680 fits 24-bit
+                    y <= 24'sd0;
+                    z <= $signed({1'b0, angle_work}) <<< QSHIFT; // zero-extend then shift
+                    iter_cnt <= 4'd0;
+                    state    <= ITER_SHIFT;
+                end
+
+                ITER_SHIFT: begin
+                    if (iter_cnt < ITERATIONS) begin
+                        // Cycle 1: shifts only + fetch atan constant; also latch z sign
+                        x_shift <= $signed(y) >>> iter_cnt;
+                        y_shift <= $signed(x) >>> iter_cnt;
+                        atan_d  <= $signed(ATAN_TABLE[iter_cnt][17:0]); // Q8 constant
+                        z_ge0   <= ~z[17]; // z >= 0 if MSB is 0
+                        state   <= ITER_ADD;
+                    end else begin
+                        state <= SCALE_EXTEND;
+                    end
+                end
+
+                ITER_ADD: begin
+                    // Cycle 2: add/sub with previously latched operands/constants
+                    if (z_ge0) begin
+                        x <= x - x_shift;
+                        y <= y + y_shift;
+                        z <= z - atan_d;
+                    end else begin
+                        x <= x + x_shift;
+                        y <= y - y_shift;
+                        z <= z + atan_d;
+                    end
+                    iter_cnt <= iter_cnt + 1'b1;
+                    state    <= ITER_SHIFT;
+                end
+
+                SCALE_EXTEND: begin
+                    // Cycle 1: Only sign-extend 24->32 (no arithmetic)
+                    y_extended <= $signed({{8{y[23]}}, y});
+                    state <= SCALE_NEGATE;
+                end
+
+                SCALE_NEGATE: begin
+                    // Cycle 2: Apply negation if needed (short path)
+                    if (sign_flag)
+                        result <= -y_extended;
+                    else
+                        result <= y_extended;
+                    state <= OUTPUT;
+                end
+
+                OUTPUT: begin
+                    done  <= 1'b1;   // one-cycle valid strobe
+                    state <= IDLE;
                 end
 
                 default: state <= IDLE;
