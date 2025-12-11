@@ -14,15 +14,20 @@ set_property -dict { PACKAGE_PIN U5   IOSTANDARD LVCMOS33 } [get_ports {seg[4]}]
 set_property -dict { PACKAGE_PIN V5   IOSTANDARD LVCMOS33 } [get_ports {seg[5]}]
 set_property -dict { PACKAGE_PIN U7   IOSTANDARD LVCMOS33 } [get_ports {seg[6]}]
 
-# set_property -dict { PACKAGE_PIN V7   IOSTANDARD LVCMOS33 } [get_ports dp]
+set_property -dict { PACKAGE_PIN V7   IOSTANDARD LVCMOS33 } [get_ports dp]
 
 set_property -dict { PACKAGE_PIN U2   IOSTANDARD LVCMOS33 } [get_ports {an[0]}]
 set_property -dict { PACKAGE_PIN U4   IOSTANDARD LVCMOS33 } [get_ports {an[1]}]
 set_property -dict { PACKAGE_PIN V4   IOSTANDARD LVCMOS33 } [get_ports {an[2]}]
 set_property -dict { PACKAGE_PIN W4   IOSTANDARD LVCMOS33 } [get_ports {an[3]}]
 
+# 300MHz Clock signal
 set_property -dict { PACKAGE_PIN W5 IOSTANDARD LVCMOS33 } [get_ports clk]
 create_clock -add -name clk300 -period 3.333 -waveform {0 1.666} [get_ports clk]
+# Create a generated clock for clk_slow (100MHz from 300MHz)
+create_generated_clock -name clk_slow_100mhz -source [get_ports clk] -divide_by 3 [get_pins alu_inst/io_ctrl/clk_div/clk_out_reg/Q]
+# Treat clk and clk_slow as asynchronous (no timing checks between domains)
+set_clock_groups -asynchronous -group [get_clocks clk300] -group [get_clocks clk_slow_100mhz]
 
 ## Reset switch (active-high). Map SW0 to 'rst'.
 set_property -dict { PACKAGE_PIN V17 IOSTANDARD LVCMOS33 } [get_ports rst]

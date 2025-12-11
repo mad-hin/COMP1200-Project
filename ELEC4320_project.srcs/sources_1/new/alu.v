@@ -159,15 +159,15 @@ module alu(
     //     .done(cos_done)
     // );
 
-    sin alu_sin (
-        .clk(clk),
-        .rst(rst),
-        .start(op_start && (sw_reg == `OP_SIN)),
-        .a(a_val),
-        .result(sin_result),
-        .error(sin_error),
-        .done(sin_done)
-    );
+    // sin alu_sin (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_SIN)),
+    //     .a(a_val),
+    //     .result(sin_result),
+    //     .error(sin_error),
+    //     .done(sin_done)
+    // );
 
     // tan alu_tan (
     //     .clk(clk),
@@ -352,14 +352,14 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-                        `OP_SIN: begin
-                            if (sin_done) begin
-                                result <= sin_result;
-                                error <= sin_error;
-                                cal_done <= 1;
-                                state <= OUTPUT;
-                            end
-                        end
+                        // `OP_SIN: begin
+                        //     if (sin_done) begin
+                        //         result <= sin_result;
+                        //         error <= sin_error;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
                         // `OP_TAN: begin
                         //     if (tan_done) begin
                         //         result <= tan_result;
@@ -432,7 +432,7 @@ module alu(
                 OUTPUT: begin
                     // Hold result for one cycle
                     cal_done <= 1;
-                    state <= IDLE;
+                    // state <= IDLE;
                 end
 
                 default: state <= IDLE;

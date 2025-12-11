@@ -33,17 +33,17 @@ module cal(
     // Switch inputs for operation selection
     input wire [3:0] sw,
     // 7-segment display outputs
-    output wire [6:0] seg,
-    output wire [3:0] an,
-    output wire [15:0] led
+    output reg [6:0] seg,
+    output reg [3:0] an,
+    output wire [15:0] led,
+    output wire dp
 );
     wire signed [`INPUTOUTBIT-1:0] result;
     wire cal_done;
-    // TODO: Add arithmetic operation modules here
-    // - Use sw[3:0] to select operation
-    // - Use input_done to trigger calculation
-    // - Store operands A and B
-    // - Compute result and update display_input
+    wire error;
+    wire [6:0] alu_seg, display_seg;
+    wire [3:0] alu_an, display_an;
+    
     alu alu_inst (
         .clk(clk),
         .rst(rst),
@@ -53,9 +53,32 @@ module cal(
         .btn_up(btn_up),
         .btn_down(btn_down),
         .btn_mid(btn_mid),
-        .seg(seg),
-        .an(an),
-        .result(led),
-        .cal_done(cal_done)
+        .seg(alu_seg),
+        .an(alu_an),
+        .result(result),
+        .cal_done(cal_done),
+        .error(error)
     );
+
+    display_controller display_inst (
+        .clk(clk),
+        .rst(rst),
+        .result(result),
+        .error(error),
+        .seg(display_seg),
+        .an(display_an),
+        .led(led),
+        .dp(dp),
+        .start(cal_done)
+    );
+
+    always @(*) begin
+        if (cal_done) begin
+            seg = display_seg;
+            an  = display_an;
+        end else begin
+            seg = alu_seg;
+            an  = alu_an;
+        end
+    end
 endmodule
