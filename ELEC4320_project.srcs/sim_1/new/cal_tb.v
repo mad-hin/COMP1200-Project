@@ -342,8 +342,52 @@ module cal_tb();
         
         wait(cal_done);
         #100;
-        $display("Result: %d (Expected: 1)", result);        
-                                                                 
+        $display("Result: %d (Expected: 1)", result); 
+        
+         // Test 23: Exponential Operations  (e^(2)=7.389)
+        $display("\nTest 23: Exponential Operations e^(2)");
+        sw = `OP_SQRT;
+        #100;
+        
+        simulate_input(1);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 1)", result);               
+        
+         // Test 24: Exponential Operations  (e^(-20)=0.00000000206115)
+        $display("\nTest 24: Exponential Operations e^(20)");
+        sw = `OP_SQRT;
+        #100;
+        
+        simulate_input(20);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 310da480)", result);   
+        
+          // Test 25: Exponential Operations  (e^(-999)=0)
+        $display("\nTest 25: Exponential Operations e^(-999)");
+        sw = `OP_SQRT;
+        #100;
+        
+        simulate_input(999);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 0)", result);          
+
+          // Test 26: Exponential Operations  (e^(20)=4851651954)
+        $display("\nTest 26: Exponential Operations e^(20)");
+        sw = `OP_SQRT;
+        #100;
+        
+        simulate_input(20);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 0)", result);      
+                                                                         
         $display("\nAll tests completed!");
         #1000;
         $finish;

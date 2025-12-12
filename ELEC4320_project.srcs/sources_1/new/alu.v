@@ -211,15 +211,15 @@ module alu(
 //         .done(atan_done)
 //     );
 
-    // exp alu_exp (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_EXP)),
-    //     .a(a_val),
-    //     .result(exp_result),
-    //     .error(exp_error),
-    //     .done(exp_done)
-    // );
+     exp alu_exp (
+         .clk(clk),
+         .rst(rst),
+         .start(op_start && (sw_reg == `OP_EXP)),
+         .a(a_val),
+         .result(exp_result),
+         .error(exp_error),
+         .done(exp_done)
+     );
 
     // fac alu_fac (
     //     .clk(clk),
@@ -394,14 +394,14 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-                        // `OP_EXP: begin
-                        //     if (exp_done) begin
-                        //         result <= exp_result;
-                        //         error <= exp_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
+                         `OP_EXP: begin
+                             if (exp_done) begin
+                                 result <= exp_result;
+                                 error <= exp_error;
+                                 cal_done <= 1;
+                                 state <= OUTPUT;
+                             end
+                         end
                         // `OP_FAC: begin
                         //     if (fac_done) begin
                         //         result <= fac_result;
