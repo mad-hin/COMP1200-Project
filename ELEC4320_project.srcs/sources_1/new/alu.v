@@ -107,16 +107,16 @@ module alu(
         .done(add_done)
     );
 
-    sub alu_sub (
-        .clk(clk),
-        .rst(rst),
-        .start(op_start && (sw_reg == `OP_SUB)),
-        .a(a_val),
-        .b(b_val),
-        .result(sub_result),
-        .error(sub_error),
-        .done(sub_done)
-    );
+//    sub alu_sub (
+//        .clk(clk),
+//        .rst(rst),
+//        .start(op_start && (sw_reg == `OP_SUB)),
+//        .a(a_val),
+//        .b(b_val),
+//        .result(sub_result),
+//        .error(sub_error),
+//        .done(sub_done)
+//    );
 
     mul alu_mul (
         .clk(clk),
@@ -150,16 +150,16 @@ module alu(
         .done(sqrt_done)
     );
 
-//    cos alu_cos (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
-//        .a(a_val),
-//        .result(cos_result),
-//        .error(cos_error),
-//        .sin_flag(sw_reg == `OP_SIN), // use for sine module compatibility
-//        .done(cos_done)
-//    );
+    cos alu_cos (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
+        .a(a_val),
+        .result(cos_result),
+        .error(cos_error),
+        .sin_flag(sw_reg == `OP_SIN), // use for sine module compatibility
+        .done(cos_done)
+    );
 
     // sin alu_sin (
     //     .clk(clk),
@@ -346,14 +346,14 @@ module alu(
                                  state <= OUTPUT;
                              end
                          end
-//                        `OP_SIN, `OP_COS: begin
-//                            if (cos_done) begin
-//                                result <= cos_result;
-//                                error <= cos_error;
-//                                cal_done <= 1;
-//                                state <= OUTPUT;
-//                            end
-//                        end
+                        `OP_SIN, `OP_COS: begin
+                            if (cos_done) begin
+                                result <= cos_result;
+                                error <= cos_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
                         // `OP_SIN: begin
                         //     if (sin_done) begin
                         //         result <= sin_result;

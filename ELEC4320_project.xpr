@@ -112,7 +112,7 @@
         </FileInfo>
       </File>
       <File Path="$PSRCDIR/sources_1/new/angle_converter.v">
-        <FileInfo>
+        <FileInfo RelPath="angle_converter.v">
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
@@ -126,14 +126,14 @@
         </FileInfo>
       </File>
       <File Path="$PSRCDIR/sources_1/new/cordic_core.v">
-        <FileInfo>
+        <FileInfo RelPath="cordic_core.v">
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
       <File Path="$PSRCDIR/sources_1/new/cos.v">
-        <FileInfo>
+        <FileInfo RelPath="cos.v">
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
@@ -195,8 +195,15 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PSRCDIR/sources_1/new/pow.v">
+        <FileInfo RelPath="pow.v">
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PSRCDIR/sources_1/new/q14_to_float.v">
-        <FileInfo>
+        <FileInfo RelPath="q14_to_float.v">
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
@@ -216,13 +223,6 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PSRCDIR/sources_1/new/sub.v">
-        <FileInfo RelPath="sub.v">
-          <Attr Name="UsedIn" Val="synthesis"/>
-          <Attr Name="UsedIn" Val="implementation"/>
-          <Attr Name="UsedIn" Val="simulation"/>
-        </FileInfo>
-      </File>
       <File Path="$PSRCDIR/sources_1/new/cal.v">
         <FileInfo RelPath="cal.v">
           <Attr Name="UsedIn" Val="synthesis"/>
@@ -230,8 +230,8 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PSRCDIR/sources_1/new/pow.v">
-        <FileInfo RelPath="pow.v">
+      <File Path="$PSRCDIR/sources_1/new/sub.v">
+        <FileInfo RelPath="sub.v">
           <Attr Name="AutoDisabled" Val="1"/>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
@@ -247,7 +247,7 @@
         </FileInfo>
       </File>
       <File Path="$PSRCDIR/sources_1/new/tan.v">
-        <FileInfo>
+        <FileInfo RelPath="tan.v">
           <Attr Name="AutoDisabled" Val="1"/>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
