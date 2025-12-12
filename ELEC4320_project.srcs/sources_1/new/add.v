@@ -28,6 +28,7 @@ module add(
     input wire start,
     input wire signed [`INPUTOUTBIT-1:0] a,
     input wire signed [`INPUTOUTBIT-1:0] b,
+    input wire add_sub_flag, // 0:add, 1:sub
     output reg signed [`INPUTOUTBIT-1:0] result, // 32 bit IEEE754
     output reg error = 0,
     output reg done
@@ -48,7 +49,7 @@ module add(
             result <= 0;
             done   <= 0;
         end else if (start) begin
-            diff = a + b;
+            diff = add_sub_flag ? (a - b) : (a + b);
             if (diff == 0) begin
                 result <= 32'b0;
             end else begin

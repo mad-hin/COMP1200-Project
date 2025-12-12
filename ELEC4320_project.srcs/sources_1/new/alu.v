@@ -98,24 +98,25 @@ module alu(
     add alu_add (
         .clk(clk),
         .rst(rst),
-        .start(op_start && (sw_reg == `OP_ADD)),
+        .start(op_start && (sw_reg == `OP_ADD || sw_reg == `OP_SUB)),
         .a(a_val),
         .b(b_val),
         .result(add_result),
+        .add_sub_flag(sw_reg == `OP_SUB),
         .error(add_error),
         .done(add_done)
     );
 
-    sub alu_sub (
-        .clk(clk),
-        .rst(rst),
-        .start(op_start && (sw_reg == `OP_SUB)),
-        .a(a_val),
-        .b(b_val),
-        .result(sub_result),
-        .error(sub_error),
-        .done(sub_done)
-    );
+    // sub alu_sub (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_SUB)),
+    //     .a(a_val),
+    //     .b(b_val),
+    //     .result(sub_result),
+    //     .error(sub_error),
+    //     .done(sub_done)
+    // );
 
     // mul alu_mul (
     //     .clk(clk),
@@ -152,32 +153,33 @@ module alu(
     cos alu_cos (
         .clk(clk),
         .rst(rst),
-        .start(op_start && (sw_reg == `OP_COS)),
+        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
         .a(a_val),
         .result(cos_result),
         .error(cos_error),
+        .sin_flag(sw_reg == `OP_SIN), // use for sine module compatibility
         .done(cos_done)
     );
 
-    sin alu_sin (
-        .clk(clk),
-        .rst(rst),
-        .start(op_start && (sw_reg == `OP_SIN)),
-        .a(a_val),
-        .result(sin_result),
-        .error(sin_error),
-        .done(sin_done)
-    );
+    // sin alu_sin (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_SIN)),
+    //     .a(a_val),
+    //     .result(sin_result),
+    //     .error(sin_error),
+    //     .done(sin_done)
+    // );
 
-    tan alu_tan (
-        .clk(clk),
-        .rst(rst),
-        .start(op_start && (sw_reg == `OP_TAN)),
-        .a(a_val),
-        .result(tan_result),
-        .error(tan_error),
-        .done(tan_done)
-    );
+    // tan alu_tan (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .start(op_start && (sw_reg == `OP_TAN)),
+    //     .a(a_val),
+    //     .result(tan_result),
+    //     .error(tan_error),
+    //     .done(tan_done)
+    // );
 
     // arcsin alu_asin (
     //     .clk(clk),
@@ -304,7 +306,7 @@ module alu(
                 WAIT_RESULT: begin
                     // Check which operation completed based on sw_reg
                     case (sw_reg)
-                        `OP_ADD: begin
+                        `OP_SUB, `OP_ADD: begin
                             if (add_done) begin
                                 result <= add_result;
                                 error <= add_error;
@@ -312,14 +314,14 @@ module alu(
                                 state <= OUTPUT;
                             end
                         end
-                        `OP_SUB: begin
-                            if (sub_done) begin
-                                result <= sub_result;
-                                error <= sub_error;
-                                cal_done <= 1;
-                                state <= OUTPUT;
-                            end
-                        end
+                        // `OP_SUB: begin
+                        //     if (sub_done) begin
+                        //         result <= sub_result;
+                        //         error <= sub_error;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
                         // `OP_MUL: begin
                         //     if (mul_done) begin
                         //         result <= mul_result;
@@ -344,7 +346,7 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-                        `OP_COS: begin
+                        `OP_SIN, `OP_COS: begin
                             if (cos_done) begin
                                 result <= cos_result;
                                 error <= cos_error;
@@ -352,14 +354,14 @@ module alu(
                                 state <= OUTPUT;
                             end
                         end
-                        `OP_SIN: begin
-                            if (sin_done) begin
-                                result <= sin_result;
-                                error <= sin_error;
-                                cal_done <= 1;
-                                state <= OUTPUT;
-                            end
-                        end
+                        // `OP_SIN: begin
+                        //     if (sin_done) begin
+                        //         result <= sin_result;
+                        //         error <= sin_error;
+                        //         cal_done <= 1;
+                        //         state <= OUTPUT;
+                        //     end
+                        // end
                         `OP_TAN: begin
                             if (tan_done) begin
                                 result <= tan_result;

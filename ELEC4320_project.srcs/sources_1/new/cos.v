@@ -31,6 +31,7 @@ module cos (
     input  wire rst,
     input  wire start,
     input  wire signed [`INPUTOUTBIT-1:0] a,   // integer degrees [-999,999]
+    input wire sin_flag, // use for sine module compatibility
     output reg  [`INPUTOUTBIT-1:0] result,     // IEEE754
     output reg  error,
     output reg  done
@@ -42,6 +43,7 @@ module cos (
     wire signed [15:0] cos_q14;     // Cosine value in Q2.14 format
     wire signed [15:0] sin_q14;     // Sine value (not used)
     wire [31:0] float_out;
+    reg signed [`INPUTOUTBIT-1:0] a_reg;
     
     // Pipeline control
     reg start_deg_to_rad;
@@ -113,48 +115,48 @@ module cos (
     // FSM
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            state            <= IDLE;
-            start_deg_to_rad <= 0;
-            start_cordic     <= 0;
-            start_float_conv <= 0;
-            result           <= 0;
-            error            <= 0;
-            done             <= 0;
-            need_sign_flip   <= 0;
+            start_sync      <= 1'b0;
+            sin_flag_sync   <= 1'b0;
+            a_sync          <= 0;
+            state           <= IDLE;
+            start_deg_to_rad<= 0;
+            start_cordic    <= 0;
+            start_float_conv<= 0;
+            result          <= 0;
+            error           <= 0;
+            done            <= 0;
+            need_sign_flip  <= 0;
             angle_deg_for_cordic <= 0;
-            rdeg             <= 0;
+            rdeg            <= 0;
         end else begin
+            // input staging to break long path
+            start_sync    <= start;
+            sin_flag_sync <= sin_flag;
+            a_sync        <= a;
+
             start_deg_to_rad <= 0;
             start_cordic     <= 0;
             start_float_conv <= 0;
-            
+
             case (state)
                 IDLE: begin
                     done  <= 0;
                     error <= 0;
-                    if (start) begin
-                        if (a > 999 || a < -999) begin
+                    if (start_sync) begin
+                        if (a_sync > 999 || a_sync < -999) begin
                             error  <= 1;
                             result <= 32'hFFC00000; // NaN
                             done   <= 1;
                         end else begin
-                            // Angle reduction for cosine
-                            rdeg = reduce_deg_cos(a);  // now in [0, 180]
-                            
-                            // Determine sign and map to [0, 90] for CORDIC
-                            // cos(θ) is positive in [0, 90) and negative in (90, 180]
+                            a_reg = sin_flag_sync ? a_sync - 90 : a_sync;
+                            rdeg  = reduce_deg_cos(a_reg);
                             if (rdeg <= 90) begin
-                                // First quadrant: [0, 90] - positive
                                 angle_deg_for_cordic <= rdeg;
-                                // For angles in (90, 180], cos is negative
                                 need_sign_flip <= 1'b0;
                             end else begin
-                                // Second quadrant: (90, 180] - negative
-                                // Use identity: cos(θ) = -cos(180-θ)
-                                angle_deg_for_cordic <= 180 - rdeg; // map to [0, 90]
-                                need_sign_flip <= 1'b1;  // need to flip sign
+                                angle_deg_for_cordic <= 180 - rdeg;
+                                need_sign_flip <= 1'b1;
                             end
-                            
                             start_deg_to_rad <= 1;
                             state            <= DEG_TO_RAD;
                         end
@@ -197,4 +199,4 @@ module cos (
         end
     end
     
-endmodule    
+endmodule
