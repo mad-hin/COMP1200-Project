@@ -31,6 +31,7 @@ module cos (
     input  wire rst,
     input  wire start,
     input  wire signed [`INPUTOUTBIT-1:0] a,   // integer degrees [-999,999]
+    input wire sin_flag, // use for sine module compatibility
     output reg  [`INPUTOUTBIT-1:0] result,     // IEEE754
     output reg  error,
     output reg  done
@@ -42,6 +43,7 @@ module cos (
     wire signed [15:0] cos_q14;     // Cosine value in Q2.14 format
     wire signed [15:0] sin_q14;     // Sine value (not used)
     wire [31:0] float_out;
+    reg signed [`INPUTOUTBIT-1:0] a_reg;
     
     // Pipeline control
     reg start_deg_to_rad;
@@ -139,7 +141,8 @@ module cos (
                             done   <= 1;
                         end else begin
                             // Angle reduction for cosine
-                            rdeg = reduce_deg_cos(a);  // now in [0, 180]
+                            a_reg = sin_flag ? a - 90 : a; // adjust input if sin_flag is set
+                            rdeg = reduce_deg_cos(a_reg);  // now in [0, 180]
                             
                             // Determine sign and map to [0, 90] for CORDIC
                             // cos(θ) is positive in [0, 90) and negative in (90, 180]
@@ -197,4 +200,4 @@ module cos (
         end
     end
     
-endmodule    
+endmodule
