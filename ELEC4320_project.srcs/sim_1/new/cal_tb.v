@@ -204,7 +204,7 @@ module cal_tb();
         $display("Result: %d (Expected: 0xC2055555)", result);                
 
         // Test 11: Division (999/0=ERROR)
-        $display("\nTest 10: Division 999 / 0");
+        $display("\nTest 11: Division 999 / 0");
         sw = `OP_DIV;
         #100;
         
@@ -214,7 +214,67 @@ module cal_tb();
         wait(cal_done);
         #100;
         $display("Result: %d (Expected: ERRROR)", result);  
-                      
+        
+        // Test 12: Logarithm  (log10(100)=2)
+        $display("\nTest 12: Logarithm  log10(100)");
+        sw = `OP_LOG;
+        #100;
+        
+        simulate_input(10);
+        simulate_input(100);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 2)", result);  
+
+        // Test 13: Logarithm  (log2(8)=3)
+        $display("\nTest 13: Logarithm  log2(8)");
+        sw = `OP_LOG;
+        #100;
+        
+        simulate_input(2);
+        simulate_input(8);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 3)", result); 
+        
+        // Test 14: Logarithm  (log999(2)=0x3dcd8800)
+        $display("\nTest 14: Logarithm  log999(2)");
+        sw = `OP_LOG;
+        #100;
+        
+        simulate_input(999);
+        simulate_input(2);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 0x3dcd8800)", result); 
+        
+        // Test 15: Logarithm  (log-999(2)=ERROR)
+        $display("\nTest 14: Logarithm  log-999(2)");
+        sw = `OP_LOG;
+        #100;
+        
+        simulate_input(999);
+        simulate_input(2);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: ERROR)", result); 
+
+        // Test 16: Logarithm  (log1(0)=ERROR)
+        $display("\nTest 16: Logarithm  log1(0)");
+        sw = `OP_LOG;
+        #100;
+        
+        simulate_input(1);
+        simulate_input(0);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: ERROR)", result); 
+                                 
         $display("\nAll tests completed!");
         #1000;
         $finish;

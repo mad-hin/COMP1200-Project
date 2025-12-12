@@ -139,15 +139,15 @@ module alu(
          .done(div_done)
      );
 
-//     sqrt alu_sqrt (
-//         .clk(clk),
-//         .rst(rst),
-//         .start(op_start && (sw_reg == `OP_SQRT)),
-//         .a(a_val),
-//         .result(sqrt_result),
-//         .error(sqrt_error),
-//         .done(sqrt_done)
-//     );
+     sqrt alu_sqrt (
+         .clk(clk),
+         .rst(rst),
+         .start(op_start && (sw_reg == `OP_SQRT)),
+         .a(a_val),
+         .result(sqrt_result),
+         .error(sqrt_error),
+         .done(sqrt_done)
+     );
 
     // cos alu_cos (
     //     .clk(clk),
@@ -199,15 +199,15 @@ module alu(
     //     .done(acos_done)
     // );
 
-    // arctan alu_atan (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_ATAN)),
-    //     .a(a_val),
-    //     .result(atan_result),
-    //     .error(atan_error),
-    //     .done(atan_done)
-    // );
+//     arctan alu_atan (
+//         .clk(clk),
+//         .rst(rst),
+//         .start(op_start && (sw_reg == `OP_ATAN)),
+//         .a(a_val),
+//         .result(atan_result),
+//         .error(atan_error),
+//         .done(atan_done)
+//     );
 
     // exp alu_exp (
     //     .clk(clk),
@@ -229,16 +229,16 @@ module alu(
     //     .done(fac_done)
     // );
 
-//     log alu_log (
-//         .clk(clk),
-//         .rst(rst),
-//         .start(op_start && (sw_reg == `OP_LOG)),
-//         .a(a_val),
-//         .b(b_val),
-//         .result(log_result),
-//         .error(log_error),
-//         .done(log_done)
-//     );
+     log alu_log (
+         .clk(clk),
+         .rst(rst),
+         .start(op_start && (sw_reg == `OP_LOG)),
+         .a(a_val),
+         .b(b_val),
+         .result(log_result),
+         .error(log_error),
+         .done(log_done)
+     );
 
 //     pow alu_pow (
 //         .clk(clk),
@@ -336,14 +336,14 @@ module alu(
                                  state <= OUTPUT;
                              end
                          end
-//                         `OP_SQRT: begin
-//                             if (sqrt_done) begin
-//                                 result <= sqrt_result;
-//                                 error <= sqrt_error;
-//                                 cal_done <= 1;
-//                                 state <= OUTPUT;
-//                             end
-//                         end
+                         `OP_SQRT: begin
+                             if (sqrt_done) begin
+                                 result <= sqrt_result;
+                                 error <= sqrt_error;
+                                 cal_done <= 1;
+                                 state <= OUTPUT;
+                             end
+                         end
                         // `OP_COS: begin
                         //     if (cos_done) begin
                         //         result <= cos_result;
@@ -408,14 +408,14 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-                        // `OP_LOG: begin
-                        //     if (log_done) begin
-                        //         result <= log_result;
-                        //         error <= log_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
+                         `OP_LOG: begin
+                             if (log_done) begin
+                                 result <= log_result;
+                                 error <= log_error;
+                                 cal_done <= 1;
+                                 state <= OUTPUT;
+                             end
+                         end
                         // `OP_POW: begin
                         //     if (pow_done) begin
                         //         result <= pow_result;
