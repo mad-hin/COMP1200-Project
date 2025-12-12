@@ -274,7 +274,31 @@ module cal_tb();
         wait(cal_done);
         #100;
         $display("Result: %d (Expected: ERROR)", result); 
-                                 
+
+        // Test 17: Power  (2^3=8)
+        $display("\nTest 17: Power  2^3");
+        sw = `OP_POW;
+        #100;
+        
+        simulate_input(2);
+        simulate_input(3);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 8)", result);
+         
+        // Test 18: Power  (-22^3=-10648)
+        $display("\nTest 17: Power  -22^3");
+        sw = `OP_POW;
+        #100;
+        
+        simulate_input(-22);
+        simulate_input(3);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: -10648)", result);
+                                                  
         $display("\nAll tests completed!");
         #1000;
         $finish;

@@ -150,16 +150,16 @@ module alu(
         .done(sqrt_done)
     );
 
-    cos alu_cos (
-        .clk(clk),
-        .rst(rst),
-        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
-        .a(a_val),
-        .result(cos_result),
-        .error(cos_error),
-        .sin_flag(sw_reg == `OP_SIN), // use for sine module compatibility
-        .done(cos_done)
-    );
+//    cos alu_cos (
+//        .clk(clk),
+//        .rst(rst),
+//        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
+//        .a(a_val),
+//        .result(cos_result),
+//        .error(cos_error),
+//        .sin_flag(sw_reg == `OP_SIN), // use for sine module compatibility
+//        .done(cos_done)
+//    );
 
     // sin alu_sin (
     //     .clk(clk),
@@ -242,16 +242,16 @@ module alu(
          .done(log_done)
      );
 
-//     pow alu_pow (
-//         .clk(clk),
-//         .rst(rst),
-//         .start(op_start && (sw_reg == `OP_POW)),
-//         .a(a_val),
-//         .b(b_val),
-//         .result(pow_result),
-//         .error(pow_error),
-//         .done(pow_done)
-//     );
+     pow alu_pow (
+         .clk(clk),
+         .rst(rst),
+         .start(op_start && (sw_reg == `OP_POW)),
+         .a(a_val),
+         .b(b_val),
+         .result(pow_result),
+         .error(pow_error),
+         .done(pow_done)
+     );
 
     // State machine
     always @(posedge clk or posedge rst) begin
@@ -346,14 +346,14 @@ module alu(
                                  state <= OUTPUT;
                              end
                          end
-                        `OP_SIN, `OP_COS: begin
-                            if (cos_done) begin
-                                result <= cos_result;
-                                error <= cos_error;
-                                cal_done <= 1;
-                                state <= OUTPUT;
-                            end
-                        end
+//                        `OP_SIN, `OP_COS: begin
+//                            if (cos_done) begin
+//                                result <= cos_result;
+//                                error <= cos_error;
+//                                cal_done <= 1;
+//                                state <= OUTPUT;
+//                            end
+//                        end
                         // `OP_SIN: begin
                         //     if (sin_done) begin
                         //         result <= sin_result;
@@ -418,14 +418,14 @@ module alu(
                                  state <= OUTPUT;
                              end
                          end
-//                         `OP_POW: begin
-//                             if (pow_done) begin
-//                                 result <= pow_result;
-//                                 error <= pow_error;
-//                                 cal_done <= 1;
-//                                 state <= OUTPUT;
-//                             end
-//                         end
+                         `OP_POW: begin
+                             if (pow_done) begin
+                                 result <= pow_result;
+                                 error <= pow_error;
+                                 cal_done <= 1;
+                                 state <= OUTPUT;
+                             end
+                         end
                         
                         default: state <= IDLE;
                     endcase
