@@ -147,11 +147,19 @@ module pow(
                         result_is_neg <= b[0]; // Negative if b is odd
                         abs_a <= -a;
                         state <= S_PREP_LN;
+                        if (b == 0) begin
+                            result <= 1;
+                            state <= S_DONE;
+                        end
                     end else begin
                         // Positive Base
                         result_is_neg <= 0;
                         abs_a <= a;
                         state <= S_PREP_LN;
+                        if (b == 0) begin
+                            result <= 1;
+                            state <= S_DONE;
+                        end
                     end
                 end
 
