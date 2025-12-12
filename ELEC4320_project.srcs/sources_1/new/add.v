@@ -28,6 +28,7 @@ module add(
     input wire start,
     input wire signed [`INPUTOUTBIT-1:0] a,
     input wire signed [`INPUTOUTBIT-1:0] b,
+    input wire add_sub_flag, // 0:add, 1:sub
     output reg signed [`INPUTOUTBIT-1:0] result, // 32 bit IEEE754
     output reg error = 0,
     output reg done
@@ -38,53 +39,44 @@ module add(
     reg [22:0] mant;
     integer leading;
 
+    reg [4:0]  lz;
+    reg [4:0]  shift_amt;
+    reg [31:0] diff_abs, diff_abs_s;
+    reg [31:0] s0, s1, s2, s3, s4;
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             result <= 0;
             done   <= 0;
         end else if (start) begin
-            diff     = a + b;
+            diff = add_sub_flag ? (a - b) : (a + b);
             if (diff == 0) begin
                 result <= 32'b0;
             end else begin
                 sign = diff[`INPUTOUTBIT-1];
-                if (sign) diff = -diff;
-                // Have no idea why for loop don't work, so use the dumb way
-                if (diff[31]) leading = 31;
-                else if (diff[30]) leading = 30;
-                else if (diff[29]) leading = 29;
-                else if (diff[28]) leading = 28;
-                else if (diff[27]) leading = 27;
-                else if (diff[26]) leading = 26;
-                else if (diff[25]) leading = 25;
-                else if (diff[24]) leading = 24;
-                else if (diff[23]) leading = 23;
-                else if (diff[22]) leading = 22;
-                else if (diff[21]) leading = 21;
-                else if (diff[20]) leading = 20;
-                else if (diff[19]) leading = 19;
-                else if (diff[18]) leading = 18;
-                else if (diff[17]) leading = 17;
-                else if (diff[16]) leading = 16;
-                else if (diff[15]) leading = 15;
-                else if (diff[14]) leading = 14;
-                else if (diff[13]) leading = 13;
-                else if (diff[12]) leading = 12;
-                else if (diff[11]) leading = 11;
-                else if (diff[10]) leading = 10;
-                else if (diff[9])  leading = 9;
-                else if (diff[8])  leading = 8;
-                else if (diff[7])  leading = 7;
-                else if (diff[6])  leading = 6;
-                else if (diff[5])  leading = 5;
-                else if (diff[4])  leading = 4;
-                else if (diff[3])  leading = 3;
-                else if (diff[2])  leading = 2;
-                else if (diff[1])  leading = 1;
-                else leading = 0;
-                exp = 8'd127 + leading;
-                mant = diff << (23 - leading);
-                result <= {sign, exp, mant[22:0]};
+                diff_abs = sign ? -diff : diff;
+
+                // leading-zero detector (5-level tree)
+                lz = 0;
+                if (diff_abs[31:16] == 0) begin lz = lz + 16; diff_abs_s = diff_abs[15:0];  end else diff_abs_s = diff_abs[31:16];
+                if (diff_abs_s[15:8] == 0) begin lz = lz + 8;  diff_abs_s = diff_abs_s[7:0]; end else diff_abs_s = diff_abs_s[15:8];
+                if (diff_abs_s[7:4]  == 0) begin lz = lz + 4;  diff_abs_s = diff_abs_s[3:0]; end else diff_abs_s = diff_abs_s[7:4];
+                if (diff_abs_s[3:2]  == 0) begin lz = lz + 2;  diff_abs_s = diff_abs_s[1:0]; end else diff_abs_s = diff_abs_s[3:2];
+                if (diff_abs_s[1]    == 0) lz = lz + 1;
+
+                shift_amt = lz;                // number of leading zeros
+                leading   = 31 - lz;           // MSB index
+                exp       = 8'd127 + leading;
+
+                // barrel shift left by shift_amt (5-stage)
+                s0 = (shift_amt[4]) ? (diff_abs << 16) : diff_abs;
+                s1 = (shift_amt[3]) ? (s0 << 8 ) : s0;
+                s2 = (shift_amt[2]) ? (s1 << 4 ) : s1;
+                s3 = (shift_amt[1]) ? (s2 << 2 ) : s2;
+                s4 = (shift_amt[0]) ? (s3 << 1 ) : s3;
+
+                mant = s4[31:9]; // keep 23 bits (hidden '1' dropped)
+                result <= {sign, exp, mant};
             end
             done <= 1;
         end else begin
