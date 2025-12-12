@@ -98,9 +98,9 @@ module sin (
             angle_deg_for_cordic <= 0;
             rdeg             <= 0;
         end else begin
-            start_deg_to_rad <= 0;
-            start_cordic     <= 0;
-            start_float_conv <= 0;
+            // start_deg_to_rad <= 0;
+            // start_cordic     <= 0;
+            // start_float_conv <= 0;
             case (state)
                 IDLE: begin
                     done  <= 0;

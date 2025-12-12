@@ -149,35 +149,35 @@ module alu(
     //     .done(sqrt_done)
     // );
 
-    // cos alu_cos (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_COS)),
-    //     .a(a_val),
-    //     .result(cos_result),
-    //     .error(cos_error),
-    //     .done(cos_done)
-    // );
+    cos alu_cos (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_COS)),
+        .a(a_val),
+        .result(cos_result),
+        .error(cos_error),
+        .done(cos_done)
+    );
 
-    // sin alu_sin (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_SIN)),
-    //     .a(a_val),
-    //     .result(sin_result),
-    //     .error(sin_error),
-    //     .done(sin_done)
-    // );
+    sin alu_sin (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_SIN)),
+        .a(a_val),
+        .result(sin_result),
+        .error(sin_error),
+        .done(sin_done)
+    );
 
-    // tan alu_tan (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_TAN)),
-    //     .a(a_val),
-    //     .result(tan_result),
-    //     .error(tan_error),
-    //     .done(tan_done)
-    // );
+    tan alu_tan (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_TAN)),
+        .a(a_val),
+        .result(tan_result),
+        .error(tan_error),
+        .done(tan_done)
+    );
 
     // arcsin alu_asin (
     //     .clk(clk),
@@ -344,30 +344,30 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-                        // `OP_COS: begin
-                        //     if (cos_done) begin
-                        //         result <= cos_result;
-                        //         error <= cos_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
-                        // `OP_SIN: begin
-                        //     if (sin_done) begin
-                        //         result <= sin_result;
-                        //         error <= sin_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
-                        // `OP_TAN: begin
-                        //     if (tan_done) begin
-                        //         result <= tan_result;
-                        //         error <= tan_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
+                        `OP_COS: begin
+                            if (cos_done) begin
+                                result <= cos_result;
+                                error <= cos_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_SIN: begin
+                            if (sin_done) begin
+                                result <= sin_result;
+                                error <= sin_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_TAN: begin
+                            if (tan_done) begin
+                                result <= tan_result;
+                                error <= tan_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
                         // `OP_ASIN: begin
                         //     if (asin_done) begin
                         //         result <= asin_result;

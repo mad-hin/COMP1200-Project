@@ -15,20 +15,20 @@ module cordic_core #(
     output reg  cordic_valid,
     output reg  done
 );
-    // Angle table for 11 iterations in Q2.14 (rad*2^14)
-    localparam signed [15:0] angle_table [0:10] = '{
-        16'h3244, // atan(2^-0)
-        16'h1DAE, // atan(2^-1)
-        16'h0FAE, // atan(2^-2)
-        16'h07F6, // atan(2^-3)
-        16'h03FF, // atan(2^-4)
-        16'h0200, // atan(2^-5)
-        16'h0100, // atan(2^-6)
-        16'h0080, // atan(2^-7)
-        16'h0040, // atan(2^-8)
-        16'h0020, // atan(2^-9)
-        16'h0010  // atan(2^-10)
-    };
+    // // Angle table for 11 iterations in Q2.14 (rad*2^14)
+    // localparam signed [15:0] angle_table [0:10] = '{
+    //     16'h3244, // atan(2^-0)
+    //     16'h1DAE, // atan(2^-1)
+    //     16'h0FAE, // atan(2^-2)
+    //     16'h07F6, // atan(2^-3)
+    //     16'h03FF, // atan(2^-4)
+    //     16'h0200, // atan(2^-5)
+    //     16'h0100, // atan(2^-6)
+    //     16'h0080, // atan(2^-7)
+    //     16'h0040, // atan(2^-8)
+    //     16'h0020, // atan(2^-9)
+    //     16'h0010  // atan(2^-10)
+    // };
 
     localparam signed [15:0] K_Q14    = 16'h26E2; // 0.607252935 * 2^14
     localparam signed [15:0] X_FIXED  = 16'h4000; // 1.0 in Q2.14
@@ -68,22 +68,22 @@ module cordic_core #(
                             if (z_pipe[i][15]) begin
                                 x_pipe[i+1] <= x_pipe[i] + (y_pipe[i] >>> i);
                                 y_pipe[i+1] <= y_pipe[i] - (x_pipe[i] >>> i);
-                                z_pipe[i+1] <= z_pipe[i] + angle_table[i];
+                                z_pipe[i+1] <= z_pipe[i] + angle_lut(i);
                             end else begin
                                 x_pipe[i+1] <= x_pipe[i] - (y_pipe[i] >>> i);
                                 y_pipe[i+1] <= y_pipe[i] + (x_pipe[i] >>> i);
-                                z_pipe[i+1] <= z_pipe[i] - angle_table[i];
+                                z_pipe[i+1] <= z_pipe[i] - angle_lut(i);
                             end
                         end
                         3: begin // vectoring
                             if (y_pipe[i][15]) begin
                                 x_pipe[i+1] <= x_pipe[i] - (y_pipe[i] >>> i);
                                 y_pipe[i+1] <= y_pipe[i] + (x_pipe[i] >>> i);
-                                z_pipe[i+1] <= z_pipe[i] - angle_table[i];
+                                z_pipe[i+1] <= z_pipe[i] - angle_lut(i);
                             end else begin
                                 x_pipe[i+1] <= x_pipe[i] + (y_pipe[i] >>> i);
                                 y_pipe[i+1] <= y_pipe[i] - (x_pipe[i] >>> i);
-                                z_pipe[i+1] <= z_pipe[i] + angle_table[i];
+                                z_pipe[i+1] <= z_pipe[i] + angle_lut(i);
                             end
                         end
                         default: begin
@@ -134,4 +134,25 @@ module cordic_core #(
             endcase
         end
     end
+
+    // Angle lookup (Q2.14, rad*2^14)
+    function [15:0] angle_lut;
+        input [3:0] idx;
+        begin
+            case (idx)
+                4'd0:  angle_lut = 16'h3244; // atan(2^-0)
+                4'd1:  angle_lut = 16'h1DAE; // atan(2^-1)
+                4'd2:  angle_lut = 16'h0FAE; // atan(2^-2)
+                4'd3:  angle_lut = 16'h07F6; // atan(2^-3)
+                4'd4:  angle_lut = 16'h03FF; // atan(2^-4)
+                4'd5:  angle_lut = 16'h0200; // atan(2^-5)
+                4'd6:  angle_lut = 16'h0100; // atan(2^-6)
+                4'd7:  angle_lut = 16'h0080; // atan(2^-7)
+                4'd8:  angle_lut = 16'h0040; // atan(2^-8)
+                4'd9:  angle_lut = 16'h0020; // atan(2^-9)
+                4'd10: angle_lut = 16'h0010; // atan(2^-10)
+                default: angle_lut = 16'h0000;
+            endcase
+        end
+    endfunction
 endmodule

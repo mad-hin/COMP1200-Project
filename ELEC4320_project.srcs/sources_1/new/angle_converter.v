@@ -7,7 +7,7 @@ module deg_to_rad (
     input  wire clk,
     input  wire rst,
     input  wire start,
-    input  wire signed [31:0] angle_deg,
+    input  wire signed [15:0] angle_deg,
     output reg  signed [15:0] angle_q14,
     output reg  angle_valid,
     output reg  error,
@@ -26,8 +26,8 @@ module deg_to_rad (
             error       <= 0;
             done        <= 0;
         end else begin
-            angle_valid <= 0;
-            done        <= 0;
+            // angle_valid <= 0;
+            // done        <= 0;
             case (state)
                 IDLE: begin
                     if (start) begin
@@ -81,6 +81,7 @@ module rad_to_deg (
     localparam IDLE = 2'd0;
     localparam CALC = 2'd1;
     localparam OUTPUT = 2'd2;
+    reg signed [31:0] temp;
     
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -100,7 +101,6 @@ module rad_to_deg (
                     // deg = rad * (180/π)
                     // Use 10-bit fractional scaling to avoid overflow
                     // deg_q14 = (rad_q14 * RAD_TO_DEG_SCALE) >> 10;
-                    reg signed [31:0] temp;
                     temp = rad_q14 * RAD_TO_DEG_SCALE;
                     deg_q14 <= temp[25:10];  // Divide by 1024 (>>10) and keep 16 bits
                     state <= OUTPUT;
