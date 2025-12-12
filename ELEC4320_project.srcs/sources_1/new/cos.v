@@ -115,48 +115,49 @@ module cos (
     // FSM
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            start_sync      <= 1'b0;
-            sin_flag_sync   <= 1'b0;
-            a_sync          <= 0;
-            state           <= IDLE;
-            start_deg_to_rad<= 0;
-            start_cordic    <= 0;
-            start_float_conv<= 0;
-            result          <= 0;
-            error           <= 0;
-            done            <= 0;
-            need_sign_flip  <= 0;
-            angle_deg_for_cordic <= 0;
-            rdeg            <= 0;
-        end else begin
-            // input staging to break long path
-            start_sync    <= start;
-            sin_flag_sync <= sin_flag;
-            a_sync        <= a;
-
+            state            <= IDLE;
             start_deg_to_rad <= 0;
             start_cordic     <= 0;
             start_float_conv <= 0;
-
+            result           <= 0;
+            error            <= 0;
+            done             <= 0;
+            need_sign_flip   <= 0;
+            angle_deg_for_cordic <= 0;
+            rdeg             <= 0;
+        end else begin
+            start_deg_to_rad <= 0;
+            start_cordic     <= 0;
+            start_float_conv <= 0;
+            
             case (state)
                 IDLE: begin
                     done  <= 0;
                     error <= 0;
-                    if (start_sync) begin
-                        if (a_sync > 999 || a_sync < -999) begin
+                    if (start) begin
+                        if (a > 999 || a < -999) begin
                             error  <= 1;
                             result <= 32'hFFC00000; // NaN
                             done   <= 1;
                         end else begin
-                            a_reg = sin_flag_sync ? a_sync - 90 : a_sync;
-                            rdeg  = reduce_deg_cos(a_reg);
+                            // Angle reduction for cosine
+                            a_reg = sin_flag ? a - 90 : a; // adjust input if sin_flag is set
+                            rdeg = reduce_deg_cos(a_reg);  // now in [0, 180]
+                            
+                            // Determine sign and map to [0, 90] for CORDIC
+                            // cos(θ) is positive in [0, 90) and negative in (90, 180]
                             if (rdeg <= 90) begin
+                                // First quadrant: [0, 90] - positive
                                 angle_deg_for_cordic <= rdeg;
+                                // For angles in (90, 180], cos is negative
                                 need_sign_flip <= 1'b0;
                             end else begin
-                                angle_deg_for_cordic <= 180 - rdeg;
-                                need_sign_flip <= 1'b1;
+                                // Second quadrant: (90, 180] - negative
+                                // Use identity: cos(θ) = -cos(180-θ)
+                                angle_deg_for_cordic <= 180 - rdeg; // map to [0, 90]
+                                need_sign_flip <= 1'b1;  // need to flip sign
                             end
+                            
                             start_deg_to_rad <= 1;
                             state            <= DEG_TO_RAD;
                         end
