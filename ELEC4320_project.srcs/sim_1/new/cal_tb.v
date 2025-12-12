@@ -310,7 +310,40 @@ module cal_tb();
         wait(cal_done);
         #100;
         $display("Result: %d (Expected: 1)", result);
-                                                  
+        
+        // Test 20: Sqrt  (sqrt(2)=1.141)
+        $display("\nTest 20: Sqrt sqrt(2)");
+        sw = `OP_SQRT;
+        #100;
+        
+        simulate_input(2);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 3fb50480)", result); 
+        
+        // Test 21: Sqrt  (sqrt(-1)=ERROR)
+        $display("\nTest 21: Sqrt sqrt(-1)");
+        sw = `OP_SQRT;
+        #100;
+        
+        simulate_input(1);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: ERROR)", result); 
+ 
+         // Test 22: Sqrt  (sqrt(1)=1)
+        $display("\nTest 22: Sqrt sqrt(1)");
+        sw = `OP_SQRT;
+        #100;
+        
+        simulate_input(1);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 1)", result);        
+                                                                 
         $display("\nAll tests completed!");
         #1000;
         $finish;

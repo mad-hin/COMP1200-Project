@@ -18,116 +18,132 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-
-
 module sqrt(
     input wire clk,
     input wire rst,
     input wire start,
-    input wire signed [`INPUTOUTBIT-1:0] a, //integer
-    output reg signed [`INPUTOUTBIT-1:0] result, // 32 bit IEEE754
-    output reg error = 0,
+    input wire signed [31:0] a,
+    // input wire signed [31:0] b, // Removed unused port
+    output reg signed [31:0] result, // 32 bit IEEE754
+    output reg error,
     output reg done
 );
 
-    reg [63:0] remainder;
-    reg [63:0] root;
-    reg [31:0] a_abs;
-    reg [5:0] start_index;
-    reg [5:0] fraction_count;
-    reg[1:0] state;
+    reg [3:0] state;
+    localparam S_IDLE   = 0;
+    localparam S_PREP   = 1;
+    localparam S_CALC   = 2;
+    localparam S_NORM   = 3;
+    localparam S_DONE   = 4;
+
+    // Registers expanded for High Precision
+    // We calculate Sqrt(a * 2^32)
+    reg [31:0] q;       // Quotient (Root)
+    reg [33:0] r;       // Remainder (needs extra bits for shifting)
+    reg [63:0] d;       // Data (holds a << 32)
+    reg [5:0]  count;   // Iteration Counter (up to 32)
     
-    localparam S_IDLE=0,
-               S_CALC_INT=1,
-               S_CALC_FRACTION=2,
-               S_OUTPUT=3;
-               
-    reg sign;
-    reg [7:0] exp;
+    // IEEE Conversion vars
+    reg [5:0]  clz_val;
+    reg [7:0]  ieee_exp;
     reg [22:0] mant;
-    integer leading;           
-               
+    reg [31:0] q_final;
+
+    // Helper: Count Leading Zeros
+    function [5:0] clz;
+        input [31:0] val;
+        integer k;
+        begin
+            clz = 0;
+            begin : clz_loop
+                for (k = 31; k >= 0; k = k - 1) begin
+                    if (val[k]) disable clz_loop;
+                    clz = clz + 1;
+                end
+            end
+        end
+    endfunction
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
+            state <= S_IDLE;
             result <= 0;
-            done   <= 0;
-            state<=S_IDLE;
+            error <= 0;
+            done <= 0;
         end else begin
             case (state)
-            
-            S_IDLE: begin
-                done<=0;
-                if (start) begin
-//                  Negative input
-                    if (a[31]==1) begin
-                        error<=1;
-                        done<=1;
-//                  Zero Case
-                    end else if (a==0) begin
-                        result<=32'h00000000;
-                        done<=1;
-                      
-                    end else begin
-                        a_abs<=a;
-                        remainder<=0;
-                        root<=0;
-                        start_index<=16;
-                        state<=S_CALC_INT;
-                        fraction_count<=0;
-                    end
+                S_IDLE: begin
+                    done <= 0;
+                    error <= 0;
+                    if (start) state <= S_PREP;
                 end
-            end
 
-            S_CALC_INT: begin
-                remainder<=(remainder<<2)|((a_abs>>((start_index-1)*2))&2'b11);
-                if((root<<1|1)<=remainder) begin
-                        remainder<=remainder-(root<<1|1);
-                        root<=(root<<1)|1;
+                S_PREP: begin
+                    if (a <= 0) begin
+                        if (a < 0) error <= 1; // Sqrt of negative is Error (NaN)
+                        result <= 0; 
+                        state <= S_DONE;
                     end else begin
-                        root<=(root<<1);
+                        // Load data and upscale by 2^32 for precision
+                        // d = {a, 32'b0}
+                        d = {a, 32'b0};
+                        q = 0;
+                        r = 0;
+                        count = 0; 
+                        state <= S_CALC;
                     end
-                    start_index<=start_index-1;
+                end
+
+                // Binary Square Root Algorithm (32 iterations)
+                S_CALC: begin
+                    if (count < 32) begin
+                        // Bring down next 2 bits from 'd'
+                        r = (r << 2) | ((d >> 62) & 3);
+                        d = d << 2;
+                        q = q << 1;
+                        
+                        // Check if we can subtract
+                        if (r >= (2 * q + 1)) begin
+                            r = r - (2 * q + 1);
+                            q = q + 1;
+                        end
+                        count <= count + 1;
+                    end else begin
+                        state <= S_NORM;
+                    end
+                end
+
+                S_NORM: begin
+                    // q now holds Sqrt(a * 2^32) = Sqrt(a) * 2^16
+                    // We treat q as a Fixed Point number with 16 fractional bits.
                     
-                if (start_index==0) 
-                    state<=S_CALC_FRACTION;
-            end
-            
-            S_CALC_FRACTION: begin
-                    remainder<=remainder<<2;
-                    if((root<<1|1)<=remainder)begin
-                        remainder<=remainder-(root<<1|1);
-                        root<=(root<<1)|1;
+                    if (q == 0) begin
+                        result <= 0;
                     end else begin
-                        root<=root<<1;
+                        clz_val = clz(q);
+                        
+                        // Exponent Calculation:
+                        // Real Value = q * 2^-16
+                        // MSB of q is at bit (31 - clz_val)
+                        // IEEE Exp = 127 + (Pos - 16)
+                        //          = 127 + (31 - clz_val) - 16
+                        //          = 142 - clz_val
+                        ieee_exp = 142 - clz_val; 
+                        
+                        // Mantissa
+                        mant = (q << clz_val) >> 8;
+                        
+                        result <= {1'b0, ieee_exp, mant};
                     end
-                    fraction_count<=fraction_count+1;
-                    if (fraction_count >= 24)
-                        state<=S_OUTPUT;
+                    state <= S_DONE;
                 end
-                
-            // Convert to IEEE-754 float for output
-            S_OUTPUT: begin
-            // sqrt is always non-negative
-                sign<=0; 
-                leading=63;
-                while (leading >= 0 && root[leading] == 0) 
-                    leading=leading-1;
-                if (leading<0) begin
-                    exp<=0;
-                    mant<=0;
-                end else begin
-                     exp=8'd127+(leading-24);
-                    if (leading>23)
-                        mant<=root>>(leading-23);
-                    else
-                        mant<=root<<(23-leading)&23'h7FFFFF; // mask 23 bits
+
+                S_DONE: begin
+                    done <= 1;
+                    if (!start) state <= S_IDLE;
                 end
-            
-                result <= {sign, exp, mant};
-                done <= 1;
-                state <= S_IDLE;
-            end
             endcase
         end
     end
+
 endmodule
