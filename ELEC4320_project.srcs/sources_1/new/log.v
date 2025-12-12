@@ -29,19 +29,20 @@ module log (
     output reg  done
 );
 
-    localparam signed [31:0] ln2_fixed_point=32'h0000_B172; 
-    localparam ITERATIONS=16;
+    localparam signed [31:0] ln2_fixed_point = 32'h0000_B172; 
+    localparam ITERATIONS = 16;
 
-    reg [3:0] state;
-    localparam S_IDLE=0;
-    localparam S_VALIDATE=1;
-    localparam S_PREP_B=2;
-    localparam S_CALC_B=3;
-    localparam S_PREP_BASE=4;
-    localparam S_CALC_BASE=5;
-    localparam S_DIVIDE=6;
-    localparam S_CONVERT=7;
-    localparam S_DONE=8;
+    reg [4:0] state;
+    localparam S_IDLE       = 0;
+    localparam S_VALIDATE   = 1;
+    localparam S_PREP_B     = 2;
+    localparam S_CALC_B     = 3;
+    localparam S_PREP_BASE  = 4;
+    localparam S_CALC_BASE  = 5;
+    localparam S_DIV_PREP   = 6;
+    localparam S_DIV_CALC   = 7;
+    localparam S_CONVERT    = 8;
+    localparam S_DONE       = 9;
 
     // Internal Signals
     reg signed [31:0] x, y, z;
@@ -56,31 +57,38 @@ module log (
     reg signed [31:0] current_input;
     reg [5:0] shift_count; 
 
-    // Table size 1-16
-    reg signed [31:0] atanh_table [0:17]; 
+    // Division Signals
+    reg [63:0] div_rem;   
+    reg [31:0] div_quo;   
+    reg [31:0] div_denom; 
+    reg [5:0]  div_cnt;   
+
+    reg signed [31:0] atanh_val;
     
-    initial begin
-        // atanh(0.5)
-        atanh_table[1]=32'h0000_8C9F; 
-        // atanh(0.25)
-        atanh_table[2]=32'h0000_4162; 
-        atanh_table[3]=32'h0000_202B; 
-        atanh_table[4]=32'h0000_1005; 
-        atanh_table[5]=32'h0000_0800; 
-        atanh_table[6]=32'h0000_0400;
-        atanh_table[7]=32'h0000_0200;
-        atanh_table[8]=32'h0000_0100;
-        atanh_table[9]=32'h0000_0080;
-        atanh_table[10]=32'h0000_0040;
-        atanh_table[11]=32'h0000_0020;
-        atanh_table[12]=32'h0000_0010;
-        atanh_table[13]=32'h0000_0008;
-        atanh_table[14]=32'h0000_0004;
-        atanh_table[15]=32'h0000_0002;
-        atanh_table[16]=32'h0000_0001;
+    // Explicit ROM
+    always @(*) begin
+        case(i)
+            1: atanh_val = 32'h0000_8C9F;
+            2: atanh_val = 32'h0000_4162;
+            3: atanh_val = 32'h0000_202B;
+            4: atanh_val = 32'h0000_1005;
+            5: atanh_val = 32'h0000_0800;
+            6: atanh_val = 32'h0000_0400;
+            7: atanh_val = 32'h0000_0200;
+            8: atanh_val = 32'h0000_0100;
+            9: atanh_val = 32'h0000_0080;
+            10: atanh_val = 32'h0000_0040;
+            11: atanh_val = 32'h0000_0020;
+            12: atanh_val = 32'h0000_0010;
+            13: atanh_val = 32'h0000_0008;
+            14: atanh_val = 32'h0000_0004;
+            15: atanh_val = 32'h0000_0002;
+            16: atanh_val = 32'h0000_0001;
+            default: atanh_val = 0;
+        endcase
     end
 
-    // Helper function: Leading Zero Count
+    // Helper: Leading Zero Count
     function [5:0] clz;
         input [31:0] in_val;
         integer k;
@@ -97,14 +105,13 @@ module log (
 
     // IEEE Signals
     reg [31:0] ieee_out;
-    reg [7:0]  exp;
-    reg [22:0] mant;
+    reg [7:0]  ieee_exp;
+    reg [22:0] ieee_mant;
     reg [31:0] abs_final;
     reg [5:0]  norm_shift;
-    reg signed [63:0] numerator_64;
     reg signed [31:0] e_ln2;
-    
-    
+    reg [63:0] rem_shift;
+    reg [32:0] sub_res; 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             state <= S_IDLE;
@@ -131,54 +138,31 @@ module log (
                     end
                 end
 
+                // Normalize B
                 S_PREP_B: begin
                     shift_count = clz(b); 
                     current_input = ($unsigned(b) << shift_count) >> 16; 
-                    
-                    x<=current_input+32'h0001_0000;
-                    y<=current_input-32'h0001_0000;
-                    z<=(32-shift_count)*ln2_fixed_point;
-                    
-                    i<=1;
-                    repeat_done<=0;
-                    state<=S_CALC_B;
+                    x <= current_input + 32'h0001_0000;
+                    y <= current_input - 32'h0001_0000;
+                    z <= (32 - shift_count) * ln2_fixed_point;
+                    i <= 1;
+                    repeat_done <= 0;
+                    state <= S_CALC_B;
                 end
 
-                // ------------------------------------------------
                 // CORDIC Core
-                // ------------------------------------------------
                 S_CALC_B, S_CALC_BASE: begin
-                    // 1. CORDIC Equation
-                    // Vectoring Mode: Drive y to 0.
-                    // If y > 0, rotate DOWN (subtract angle). d = -1.
-                    // If y < 0, rotate UP (add angle). d = +1.
-                    // z accumulates angle: z_next = z - d*angle.
-                    // if y>0 (d=-1): z_next = z - (-angle) = z + angle.
-                    // if y<0 (d=+1): z_next = z - (+angle) = z - angle.
-                    
-                    // WAIT! Mathematical Identity Check:
-                    // We want z to store 0.5 * ln((x+y)/(x-y)).
-                    // Standard CORDIC accumulation:
-                    // If we use d = sign(x)*sign(y), then z accumulates correctly?
-                    // Let's stick to the standard implementation that matches the table values:
-                    // If y < 0, we add Y term to X, and SUBTRACT angle from Z.
-                    
-                    // FIX: Reverting to standard hyperbolic vectoring signs
-                    if ((y[31] == 0)) begin // y > 0 (Positive)
+                    if ((y[31] == 0)) begin 
                         x_next = x - (y >>> i);
                         y_next = y - (x >>> i);
-                        z_next = z + atanh_table[i]; 
-                    end else begin // y < 0 (Negative)
+                        z_next = z + atanh_val; 
+                    end else begin 
                         x_next = x + (y >>> i);
                         y_next = y + (x >>> i);
-                        z_next = z - atanh_table[i];
+                        z_next = z - atanh_val;
                     end
-                    
-                    x <= x_next;
-                    y <= y_next;
-                    z <= z_next;
+                    x <= x_next; y <= y_next; z <= z_next;
 
-                    // 2. Iteration Control
                     if (i <= ITERATIONS) begin
                         if ((i == 4 || i == 13) && repeat_done == 0) begin
                             repeat_done <= 1; 
@@ -187,75 +171,82 @@ module log (
                             repeat_done <= 0; 
                         end
                     end else begin
-                        // 3. Final Calculation
-                        // Math: ln(Input) = 2 * z_accum - Initial_E_offset
-
-                        if (state == S_CALC_B) 
-                            e_ln2 = (32 - clz(b))*ln2_fixed_point;
-                        else 
-                            e_ln2 = (32 - clz(a))*ln2_fixed_point;
+                        if (state == S_CALC_B) e_ln2 = (32 - clz(b))*ln2_fixed_point;
+                        else e_ln2 = (32 - clz(a))*ln2_fixed_point;
 
                         if (state == S_CALC_B) begin
                              ln_b_val <= (z <<< 1) - e_ln2; 
                              state <= S_PREP_BASE;
                         end else begin
                              ln_base_val <= (z <<< 1) - e_ln2;
-                             state <= S_DIVIDE;
+                             state <= S_DIV_PREP;
                         end
                     end
                 end
 
-                // ------------------------------------------------
-                // Normalize Input Base
-                // ------------------------------------------------
+                // Normalize Base
                 S_PREP_BASE: begin
                      shift_count = clz(a);
                      current_input = ($unsigned(a) << shift_count) >> 16;
-                     
                      x <= current_input + 32'h0001_0000; 
                      y <= current_input - 32'h0001_0000; 
                      z <= (32 - shift_count) * ln2_fixed_point; 
-                     
                      i <= 1;
                      repeat_done <= 0;
                      state <= S_CALC_BASE;
                 end
 
-                // ------------------------------------------------
-                // Division
-                // ------------------------------------------------
-                S_DIVIDE: begin
+                // Division - Step 1
+                S_DIV_PREP: begin
                     if (ln_base_val == 0) begin
-                        final_fixed <= 32'h7FFF_FFFF; 
+                        final_fixed <= 32'h7FFF_FFFF;
+                        state <= S_CONVERT;
                     end else begin
-                        numerator_64 = ln_b_val; 
-                        // Q16.16 Division
-                        final_fixed <= (numerator_64 <<< 16) / ln_base_val;
+                        // FIX: Shift by 15 instead of 16 to correct the factor of 2 error
+                        div_rem = {32'b0, ln_b_val} << 15; 
+                        div_denom = ln_base_val;
+                        div_quo = 0;
+                        div_cnt = 32; 
+                        state <= S_DIV_CALC;
                     end
-                    state <= S_CONVERT;
                 end
 
-                // ------------------------------------------------
+                // Division - Step 2 (Bit Serial)
+                S_DIV_CALC: begin
+                    
+                    rem_shift = div_rem << 1;
+                    sub_res = rem_shift[63:32] - {1'b0, div_denom};
+                    
+                    if (sub_res[32] == 0) begin // Positive
+                        div_rem = {sub_res[31:0], rem_shift[31:0]};
+                        div_quo = (div_quo << 1) | 1'b1;
+                    end else begin // Negative
+                        div_rem = rem_shift;
+                        div_quo = (div_quo << 1) | 1'b0;
+                    end
+                    
+                    if (div_cnt == 0) begin
+                        final_fixed <= div_quo; 
+                        state <= S_CONVERT;
+                    end else begin
+                        div_cnt <= div_cnt - 1;
+                    end
+                end
+
                 // IEEE 754 Conversion
-                // ------------------------------------------------
                 S_CONVERT: begin
-                    ieee_out[31] = final_fixed[31]; // Sign
+                    ieee_out[31] = final_fixed[31]; 
                     abs_final = final_fixed[31] ? -final_fixed : final_fixed;
                     
                     if (abs_final == 0) begin
                         ieee_out = 0;
                     end else begin
                         norm_shift = clz(abs_final);
-                        
-                        // Exponent: 127 + (31 - norm_shift - 16)
-                        exp=142-norm_shift;
-                        
-                        mant=(abs_final << norm_shift) >> 8; 
-                        
-                        ieee_out[30:23] = exp;
-                        ieee_out[22:0]  = mant;
+                        ieee_exp = 142 - norm_shift;
+                        ieee_mant = (abs_final << norm_shift) >> 8; 
+                        ieee_out[30:23] = ieee_exp;
+                        ieee_out[22:0]  = ieee_mant;
                     end
-                    
                     result <= ieee_out;
                     state <= S_DONE;
                 end
@@ -267,5 +258,4 @@ module log (
             endcase
         end
     end
-
 endmodule

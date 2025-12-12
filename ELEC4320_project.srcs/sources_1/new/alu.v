@@ -416,14 +416,14 @@ module alu(
                                  state <= OUTPUT;
                              end
                          end
-                        // `OP_POW: begin
-                        //     if (pow_done) begin
-                        //         result <= pow_result;
-                        //         error <= pow_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
+//                         `OP_POW: begin
+//                             if (pow_done) begin
+//                                 result <= pow_result;
+//                                 error <= pow_error;
+//                                 cal_done <= 1;
+//                                 state <= OUTPUT;
+//                             end
+//                         end
                         
                         default: state <= IDLE;
                     endcase
