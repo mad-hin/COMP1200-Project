@@ -131,6 +131,54 @@ module cal_tb();
         #100;
         $display("Result: %d (Expected: 20)", result);
         
+        // Test 5: Mutilpcation (2*3=6)
+        $display("\nTest 5: Mutilpcation 2 * 3");
+        sw = `OP_MUL;
+        #100;
+        
+        simulate_input(2);
+        simulate_input(3);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 0x40C00000)", result);  
+        
+        // Test 6: Mutilpcation (-999*0=0)
+        $display("\nTest 6: Mutilpcation -999 * 0");
+        sw = `OP_MUL;
+        #100;
+        
+        simulate_input(-999);
+        simulate_input(0);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 0x0)", result);  
+        
+        // Test 7: Mutilpcation (-321*-123=39483)
+        $display("\nTest 7: Mutilpcation -321 * -123");
+        sw = `OP_MUL;
+        #100;
+        
+        simulate_input(-321);
+        simulate_input(-123);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 0x471a3b00)", result);          
+        
+        // Test 7: Mutilpcation (-1*1=-1)
+        $display("\nTest 7: Mutilpcation -1 * 1");
+        sw = `OP_MUL;
+        #100;
+        
+        simulate_input(-1);
+        simulate_input(1);
+        
+        wait(cal_done);
+        #100;
+        $display("Result: %d (Expected: 0xBF800000)", result);     
+              
         $display("\nAll tests completed!");
         #1000;
         $finish;
@@ -159,6 +207,7 @@ module cal_tb();
             #10000;  // Wait for input to be processed
         end
     endtask
+
     
     // Monitor signals
     initial begin

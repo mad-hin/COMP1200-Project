@@ -117,16 +117,16 @@ module alu(
         .done(sub_done)
     );
 
-    // mul alu_mul (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_MUL)),
-    //     .a(a_val),
-    //     .b(b_val),
-    //     .result(mul_result),
-    //     .error(mul_error),
-    //     .done(mul_done)
-    // );
+     mul alu_mul (
+         .clk(clk),
+         .rst(rst),
+         .start(op_start && (sw_reg == `OP_MUL)),
+         .a(a_val),
+         .b(b_val),
+         .result(mul_result),
+         .error(mul_error),
+         .done(mul_done)
+     );
 
     // div alu_div (
     //     .clk(clk),
