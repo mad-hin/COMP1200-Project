@@ -118,37 +118,37 @@ module alu(
         .done(sub_done)
     );
 
-    // mul alu_mul (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_MUL)),
-    //     .a(a_val),
-    //     .b(b_val),
-    //     .result(mul_result),
-    //     .error(mul_error),
-    //     .done(mul_done)
-    // );
+    mul alu_mul (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_MUL)),
+        .a(a_val),
+        .b(b_val),
+        .result(mul_result),
+        .error(mul_error),
+        .done(mul_done)
+    );
 
-    // div alu_div (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_DIV)),
-    //     .a(a_val),
-    //     .b(b_val),
-    //     .result(div_result),
-    //     .error(div_error),
-    //     .done(div_done)
-    // );
+    div alu_div (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_DIV)),
+        .a(a_val),
+        .b(b_val),
+        .result(div_result),
+        .error(div_error),
+        .done(div_done)
+    );
 
-     sqrt alu_sqrt (
-         .clk(clk),
-         .rst(rst),
-         .start(op_start && (sw_reg == `OP_SQRT)),
-         .a(a_val),
-         .result(sqrt_result),
-         .error(sqrt_error),
-         .done(sqrt_done)
-     );
+    sqrt alu_sqrt (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_SQRT)),
+        .a(a_val),
+        .result(sqrt_result),
+        .error(sqrt_error),
+        .done(sqrt_done)
+    );
 
     cos alu_cos (
         .clk(clk),
