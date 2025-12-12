@@ -1,4 +1,4 @@
-`define INPUTOUTBIT 32
+`define INPUTOUTBIT 16
 
 // Define the state for Arithmetic Operation 
 `define OP_ADD 4'b0000
