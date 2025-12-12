@@ -128,26 +128,26 @@ module alu(
          .done(mul_done)
      );
 
-    // div alu_div (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_DIV)),
-    //     .a(a_val),
-    //     .b(b_val),
-    //     .result(div_result),
-    //     .error(div_error),
-    //     .done(div_done)
-    // );
+     div alu_div (
+         .clk(clk),
+         .rst(rst),
+         .start(op_start && (sw_reg == `OP_DIV)),
+         .a(a_val),
+         .b(b_val),
+         .result(div_result),
+         .error(div_error),
+         .done(div_done)
+     );
 
-    // sqrt alu_sqrt (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_SQRT)),
-    //     .a(a_val),
-    //     .result(sqrt_result),
-    //     .error(sqrt_error),
-    //     .done(sqrt_done)
-    // );
+//     sqrt alu_sqrt (
+//         .clk(clk),
+//         .rst(rst),
+//         .start(op_start && (sw_reg == `OP_SQRT)),
+//         .a(a_val),
+//         .result(sqrt_result),
+//         .error(sqrt_error),
+//         .done(sqrt_done)
+//     );
 
     // cos alu_cos (
     //     .clk(clk),
@@ -229,27 +229,27 @@ module alu(
     //     .done(fac_done)
     // );
 
-    // log alu_log (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_LOG)),
-    //     .a(a_val),
-    //     .b(b_val),
-    //     .result(log_result),
-    //     .error(log_error),
-    //     .done(log_done)
-    // );
+//     log alu_log (
+//         .clk(clk),
+//         .rst(rst),
+//         .start(op_start && (sw_reg == `OP_LOG)),
+//         .a(a_val),
+//         .b(b_val),
+//         .result(log_result),
+//         .error(log_error),
+//         .done(log_done)
+//     );
 
-    // pow alu_pow (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_POW)),
-    //     .a(a_val),
-    //     .b(b_val),
-    //     .result(pow_result),
-    //     .error(pow_error),
-    //     .done(pow_done)
-    // );
+//     pow alu_pow (
+//         .clk(clk),
+//         .rst(rst),
+//         .start(op_start && (sw_reg == `OP_POW)),
+//         .a(a_val),
+//         .b(b_val),
+//         .result(pow_result),
+//         .error(pow_error),
+//         .done(pow_done)
+//     );
 
     // State machine
     always @(posedge clk or posedge rst) begin
@@ -320,30 +320,30 @@ module alu(
                                 state <= OUTPUT;
                             end
                         end
-                        // `OP_MUL: begin
-                        //     if (mul_done) begin
-                        //         result <= mul_result;
-                        //         error <= mul_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
-                        // `OP_DIV: begin
-                        //     if (div_done) begin
-                        //         result <= div_result;
-                        //         error <= div_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
-                        // `OP_SQRT: begin
-                        //     if (sqrt_done) begin
-                        //         result <= sqrt_result;
-                        //         error <= sqrt_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
+                         `OP_MUL: begin
+                             if (mul_done) begin
+                                 result <= mul_result;
+                                 error <= mul_error;
+                                 cal_done <= 1;
+                                 state <= OUTPUT;
+                             end
+                         end
+                         `OP_DIV: begin
+                             if (div_done) begin
+                                 result <= div_result;
+                                 error <= div_error;
+                                 cal_done <= 1;
+                                 state <= OUTPUT;
+                             end
+                         end
+//                         `OP_SQRT: begin
+//                             if (sqrt_done) begin
+//                                 result <= sqrt_result;
+//                                 error <= sqrt_error;
+//                                 cal_done <= 1;
+//                                 state <= OUTPUT;
+//                             end
+//                         end
                         // `OP_COS: begin
                         //     if (cos_done) begin
                         //         result <= cos_result;
