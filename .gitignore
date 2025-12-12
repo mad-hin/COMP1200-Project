@@ -69,3 +69,4 @@ xvlog.*
 *.backup.*
 *.debug
 
+build/
