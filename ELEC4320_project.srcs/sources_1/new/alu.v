@@ -33,7 +33,7 @@ module alu(
     input wire btn_mid,
     output wire [6:0] seg,
     output wire [3:0] an,
-    output reg [`INPUTOUTBIT-1:0] result, // IEEE754 floating point output
+    output reg [`INPUTOUTBIT-1:0] result, // BF16 floating point output
     output reg error, // 1 = have error, 0 = no error
     output reg cal_done
 );
