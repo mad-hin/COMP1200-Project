@@ -81,17 +81,22 @@ module cos (
         .done(deg_to_rad_done)
     );
 
-    // CORDIC core for COS calculation (MODE=1)
-    cordic_core #(.MODE(1)) u_cordic (
+    // CORDIC core for COS calculation
+    // 0: begin // SIN: result = sin, secondary = cos
+    //    result_q14     = sin_val;
+    //    secondary_q14  = cos_val;
+    // end
+    cordic_core #(.MODE(0)) u_cordic (
         .clk(clk),
         .rst(rst),
         .start(start_cordic),
         .angle_q14(angle_q14),
-        .result_q14(cos_q14),      // Cosine output
-        .secondary_q14(),          // unused
+        .result_q14(),      
+        .secondary_q14(cos_q14),    
         .cordic_valid(),
         .done(cordic_done)
     );
+
 
     // Q2.14 -> BF16
     Q14_to_BF16 u_bf16_conv (
@@ -128,7 +133,7 @@ module cos (
                     done  <= 0;
                     error <= 0;
                     if (start) begin
-                        if (a > 16'sd999 || a < -16'sd999) begin
+                        if (a > 16'sd9999 || a < -16'sd9999) begin
                             error  <= 1;
                             result <= 16'hFFC0; // BF16 NaN
                             done   <= 1;

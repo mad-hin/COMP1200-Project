@@ -1,19 +1,19 @@
-    // arcsin alu_asin (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_ASIN)),
-    //     .a(a_val),
-    //     .result(asin_result),
-    //     .error(asin_error),
-    //     .done(asin_done)
-    // );
+// arcsin alu_asin (
+//     .clk(clk),
+//     .rst(rst),
+//     .start(op_start && (sw_reg == `OP_ASIN)),
+//     .a(a_val),
+//     .result(asin_result),
+//     .error(asin_error),
+//     .done(asin_done)
+// );
 
-    //要求
-    //输入是整数斜率，[-999,999]
-    //输出是BF16浮点数格式，表示角度
-    //实际上在整数情况下，arcsin只有-1，0，1三个有效输入
-    //用if-else实现
-    //如果是其他情况直接error就可以了
+//要求
+//输入是整数斜率，[-999,999]
+//输出是BF16浮点数格式，表示角度
+//实际上在整数情况下，arcsin只有-1，0，1三个有效输入
+//用if-else实现
+//如果是其他情况直接error就可以了
 
 `timescale 1ns / 1ps
 `include "define.vh"
