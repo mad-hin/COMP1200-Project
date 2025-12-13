@@ -1,6 +1,6 @@
 // 数值格式为Q2.14
+// arctan mode的时候，计算的结果是arctan(1/x)
 // 需要运行在300MHz，可以调用DSP，但不可以用IP和直接用LUT
-`timescale 1ns / 1ps
 
 module cordic_core #(
     parameter MODE = 0,           // 0:SIN, 1:ARCTAN
@@ -9,7 +9,7 @@ module cordic_core #(
     input wire clk,
     input wire rst,
     input wire start,
-    // SIN: angle in rad Q2.14; ARCTAN: y in Q2.14 (x=1)
+    // SIN: angle in rad Q2.14; ARCTAN: x in Q2.14 (y固定为1.0)
     input wire signed [15:0] angle_q14,
     output reg  signed [15:0] result_q14,
     output reg  signed [15:0] secondary_q14,
@@ -38,9 +38,9 @@ module cordic_core #(
                     y_pipe[0] <= 0; 
                     z_pipe[0] <= angle_q14; 
                 end
-                1: begin // ARCTAN mode
-                    x_pipe[0] <= X_FIXED; 
-                    y_pipe[0] <= angle_q14; 
+                1: begin // ARCTAN mode: x=input, y=1.0
+                    x_pipe[0] <= angle_q14; 
+                    y_pipe[0] <= X_FIXED; 
                     z_pipe[0] <= 0; 
                 end
                 default: begin 
@@ -102,7 +102,7 @@ module cordic_core #(
                 result_q14     = sin_val;
                 secondary_q14  = cos_val;
             end
-            1: begin // ARCTAN: result = angle, secondary = x
+            1: begin // ARCTAN: result = angle, secondary = x_final
                 result_q14     = z_pipe[ITERATIONS];
                 secondary_q14  = x_pipe[ITERATIONS];
             end
