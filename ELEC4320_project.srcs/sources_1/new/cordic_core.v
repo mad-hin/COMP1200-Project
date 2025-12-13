@@ -2,7 +2,7 @@
 `timescale 1ns / 1ps
 
 module cordic_core #(
-    parameter MODE = 0,  // 0:SIN, 1:COS, 2:TAN, 3:ARCTAN
+    parameter MODE = 1,  // 0:SIN, 1:COS, 2:TAN, 3:ARCTAN
     parameter integer ITERATIONS = 11
 )(
     input wire clk,

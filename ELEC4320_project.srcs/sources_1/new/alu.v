@@ -150,16 +150,15 @@ module alu(
         .done(sqrt_done)
     );
 
-//    cos alu_cos (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
-//        .a(a_val),
-//        .result(cos_result),
-//        .error(cos_error),
-//        .sin_flag(sw_reg == `OP_SIN), // use for sine module compatibility
-//        .done(cos_done)
-//    );
+// cos alu_cos (
+//     .clk(clk),
+//     .rst(rst),
+//     .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
+//     .a( sw_reg == `OP_SIN ? (a_val - 16'sd90) : a_val ), // sin(x)=cos(x-90)
+//     .result(cos_result),
+//     .error(cos_error),
+//     .done(cos_done),
+// );
 
     // sin alu_sin (
     //     .clk(clk),
