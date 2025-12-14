@@ -17,8 +17,9 @@ module display_controller(
     wire [7:0]  exp_field = result[14:7];
     wire [6:0]  man_field = result[6:0]; 
 
-    // Build unsigned magnitude: 1.mantissa in Q16.16 (24 bits keep margin)
-    wire [23:0] sig_q = {1'b1, man_field, 16'd0}; // 1.M * 2^16
+    // Build unsigned magnitude: 1.mantissa aligned to bit 16 (Q16.16)
+    // Bit 16 is the implicit '1'. Bits 15..9 are the mantissa.
+    wire [23:0] sig_q = {7'b0, 1'b1, man_field, 9'b0}; 
 
     wire signed [8:0] e_bias = {1'b0,exp_field} - 9'sd127;
 
@@ -42,22 +43,7 @@ module display_controller(
                 5'd13: val_mag_q = {24'd0, sig_q} << 13;
                 5'd14: val_mag_q = {24'd0, sig_q} << 14;
                 5'd15: val_mag_q = {24'd0, sig_q} << 15;
-                5'd16: val_mag_q = {24'd0, sig_q} << 16;
-                5'd17: val_mag_q = {24'd0, sig_q} << 17;
-                5'd18: val_mag_q = {24'd0, sig_q} << 18;
-                5'd19: val_mag_q = {24'd0, sig_q} << 19;
-                5'd20: val_mag_q = {24'd0, sig_q} << 20;
-                5'd21: val_mag_q = {24'd0, sig_q} << 21;
-                5'd22: val_mag_q = {24'd0, sig_q} << 22;
-                5'd23: val_mag_q = {24'd0, sig_q} << 23;
-                5'd24: val_mag_q = {24'd0, sig_q} << 24;
-                5'd25: val_mag_q = {24'd0, sig_q} << 25;
-                5'd26: val_mag_q = {24'd0, sig_q} << 26;
-                5'd27: val_mag_q = {24'd0, sig_q} << 27;
-                5'd28: val_mag_q = {24'd0, sig_q} << 28;
-                5'd29: val_mag_q = {24'd0, sig_q} << 29;
-                5'd30: val_mag_q = {24'd0, sig_q} << 30;
-                default: val_mag_q = {24'd0, sig_q} << 31;
+                default: val_mag_q = {24'd0, sig_q} << 16; // clamp
             endcase
         end else begin
             case (-e_bias[4:0])
@@ -76,160 +62,113 @@ module display_controller(
                 5'd12: val_mag_q = {24'd0, sig_q} >> 12;
                 5'd13: val_mag_q = {24'd0, sig_q} >> 13;
                 5'd14: val_mag_q = {24'd0, sig_q} >> 14;
-                5'd15: val_mag_q = {24'd0, sig_q} >> 15;
-                5'd16: val_mag_q = {24'd0, sig_q} >> 16;
-                5'd17: val_mag_q = {24'd0, sig_q} >> 17;
-                5'd18: val_mag_q = {24'd0, sig_q} >> 18;
-                5'd19: val_mag_q = {24'd0, sig_q} >> 19;
-                5'd20: val_mag_q = {24'd0, sig_q} >> 20;
-                5'd21: val_mag_q = {24'd0, sig_q} >> 21;
-                5'd22: val_mag_q = {24'd0, sig_q} >> 22;
-                5'd23: val_mag_q = {24'd0, sig_q} >> 23;
-                5'd24: val_mag_q = {24'd0, sig_q} >> 24;
-                5'd25: val_mag_q = {24'd0, sig_q} >> 25;
-                5'd26: val_mag_q = {24'd0, sig_q} >> 26;
-                5'd27: val_mag_q = {24'd0, sig_q} >> 27;
-                5'd28: val_mag_q = {24'd0, sig_q} >> 28;
-                5'd29: val_mag_q = {24'd0, sig_q} >> 29;
-                5'd30: val_mag_q = {24'd0, sig_q} >> 30;
                 default: val_mag_q = 48'd0; // underflow
             endcase
         end
     end
 
-    // Apply sign after shift
+    // Apply sign
     wire signed [47:0] val_q_signed = sign_bit ? -$signed({1'b0,val_mag_q[46:0]}) 
                                                : $signed({1'b0,val_mag_q[46:0]});
 
-    // integer part (truncate fraction)
-    wire signed [31:0] val_int = val_q_signed[47:16];
-    wire        val_sign = val_int[31];
-    wire [31:0] abs_int  = val_sign ? (~val_int + 1'b1) : val_int;
+    // Absolute value for display
+    wire [47:0] val_abs = sign_bit ? (~val_q_signed + 1'b1) : val_q_signed;
+    
+    // Integer part
+    wire [31:0] abs_int = val_abs[47:16];
+    
+    // Fractional part: convert 0.XXXX (16 bits) to 4 decimal digits
+    // Multiply by 10000 and shift right 16
+    wire [15:0] abs_frac_bits = val_abs[15:0];
+    wire [31:0] frac_scaled = abs_frac_bits * 16'd10000;
+    wire [13:0] abs_frac = frac_scaled[31:16]; // 0..9999
 
-    // --------------- Decimal digits (no loops) --------------------
-    // up to 8 digits (most significant)
-    wire [3:0] d7 = (abs_int / 32'd10000000) % 10;
-    wire [3:0] d6 = (abs_int / 32'd1000000 ) % 10;
-    wire [3:0] d5 = (abs_int / 32'd100000  ) % 10;
-    wire [3:0] d4 = (abs_int / 32'd10000   ) % 10;
-    wire [3:0] d3 = (abs_int / 32'd1000    ) % 10;
-    wire [3:0] d2 = (abs_int / 32'd100     ) % 10;
-    wire [3:0] d1 = (abs_int / 32'd10      ) % 10;
+    // --------------- Decimal digits --------------------
+    // Integer digits
+    wire [3:0] d4 = (abs_int / 10000) % 10;
+    wire [3:0] d3 = (abs_int / 1000 ) % 10;
+    wire [3:0] d2 = (abs_int / 100  ) % 10;
+    wire [3:0] d1 = (abs_int / 10   ) % 10;
     wire [3:0] d0 =  abs_int % 10;
 
-    wire [3:0] int_len = (abs_int >= 32'd10000000) ? 4'd8 :
-                         (abs_int >= 32'd1000000 ) ? 4'd7 :
-                         (abs_int >= 32'd100000  ) ? 4'd6 :
-                         (abs_int >= 32'd10000   ) ? 4'd5 :
-                         (abs_int >= 32'd1000    ) ? 4'd4 :
-                         (abs_int >= 32'd100     ) ? 4'd3 :
-                         (abs_int >= 32'd10      ) ? 4'd2 : 4'd1;
+    // Fraction digits
+    wire [3:0] f3 = (abs_frac / 1000) % 10;
+    wire [3:0] f2 = (abs_frac / 100 ) % 10;
+    wire [3:0] f1 = (abs_frac / 10  ) % 10;
+    wire [3:0] f0 =  abs_frac % 10;
 
-    wire has_sign = val_sign;
-    wire [3:0] max_digits = has_sign ? 4'd7 : 4'd8; // digit slots (sign uses 1)
-    wire use_trunc = (int_len > max_digits);
+    // Determine integer length
+    wire [2:0] int_len = (abs_int >= 10000) ? 3'd5 :
+                         (abs_int >= 1000 ) ? 3'd4 :
+                         (abs_int >= 100  ) ? 3'd3 :
+                         (abs_int >= 10   ) ? 3'd2 : 3'd1;
 
-    // total symbols (including sign if any)
-    wire [3:0] total_syms = use_trunc ? (max_digits + has_sign) : (int_len + has_sign);
+    wire has_sign = sign_bit;
+    wire has_frac = (abs_frac != 0);
+    
+    // Total symbols: sign + int_digits + frac_digits
+    // We map these to sym0..sym7
+    
+    // Helper to pick integer digit by index (0=LSB)
+    function [3:0] get_int_digit;
+        input [2:0] idx;
+        begin
+            case(idx)
+                0: get_int_digit = d0;
+                1: get_int_digit = d1;
+                2: get_int_digit = d2;
+                3: get_int_digit = d3;
+                4: get_int_digit = d4;
+                default: get_int_digit = 4'd0;
+            endcase
+        end
+    endfunction
 
-    // Symbol codes (0-9 digits, 10 = '-', 11 = blank)
-    wire [3:0] sym0 = has_sign ? 4'd10 : use_trunc ? d7 :
-                      (int_len==8)? d7 :
-                      (int_len==7)? d6 :
-                      (int_len==6)? d5 :
-                      (int_len==5)? d4 :
-                      (int_len==4)? d3 :
-                      (int_len==3)? d2 :
-                      (int_len==2)? d1 : d0;
-
-    wire [3:0] sym1 = has_sign ? (use_trunc ? d7 :
-                          (int_len==8)? d7 :
-                          (int_len==7)? d6 :
-                          (int_len==6)? d5 :
-                          (int_len==5)? d4 :
-                          (int_len==4)? d3 :
-                          (int_len==3)? d2 :
-                          (int_len==2)? d1 : d0)
-                       : (use_trunc ? d6 :
-                          (int_len==8)? d6 :
-                          (int_len==7)? d5 :
-                          (int_len==6)? d4 :
-                          (int_len==5)? d3 :
-                          (int_len==4)? d2 :
-                          (int_len==3)? d1 :
-                          (int_len==2)? d0 : 4'd11);  // blank
-
-    wire [3:0] sym2 = has_sign ? (use_trunc ? d6 :
-                          (int_len==8)? d6 :
-                          (int_len==7)? d5 :
-                          (int_len==6)? d4 :
-                          (int_len==5)? d3 :
-                          (int_len==4)? d2 :
-                          (int_len==3)? d1 :
-                          (int_len==2)? d0 : 4'd11)
-                       : (use_trunc ? d5 :
-                          (int_len==8)? d5 :
-                          (int_len==7)? d4 :
-                          (int_len==6)? d3 :
-                          (int_len==5)? d2 :
-                          (int_len==4)? d1 :
-                          (int_len==3)? d0 : 4'd11);
-
-    wire [3:0] sym3 = has_sign ? (use_trunc ? d5 :
-                          (int_len==8)? d5 :
-                          (int_len==7)? d4 :
-                          (int_len==6)? d3 :
-                          (int_len==5)? d2 :
-                          (int_len==4)? d1 :
-                          (int_len==3)? d0 : 4'd11)
-                       : (use_trunc ? d4 :
-                          (int_len==8)? d4 :
-                          (int_len==7)? d3 :
-                          (int_len==6)? d2 :
-                          (int_len==5)? d1 :
-                          (int_len==4)? d0 : 4'd11);
-
-    wire [3:0] sym4 = has_sign ? (use_trunc ? d4 :
-                          (int_len==8)? d4 :
-                          (int_len==7)? d3 :
-                          (int_len==6)? d2 :
-                          (int_len==5)? d1 :
-                          (int_len==4)? d0 : 4'd11)
-                       : (use_trunc ? d3 :
-                          (int_len==8)? d3 :
-                          (int_len==7)? d2 :
-                          (int_len==6)? d1 :
-                          (int_len==5)? d0 : 4'd11);
-
-    wire [3:0] sym5 = has_sign ? (use_trunc ? d3 :
-                          (int_len==8)? d3 :
-                          (int_len==7)? d2 :
-                          (int_len==6)? d1 :
-                          (int_len==5)? d0 : 4'd11)
-                       : (use_trunc ? d2 :
-                          (int_len==8)? d2 :
-                          (int_len==7)? d1 :
-                          (int_len==6)? d0 : 4'd11);
-
-    wire [3:0] sym6 = has_sign ? (use_trunc ? d2 :
-                          (int_len==8)? d2 :
-                          (int_len==7)? d1 :
-                          (int_len==6)? d0 : 4'd11)
-                       : (use_trunc ? d1 :
-                          (int_len==8)? d1 :
-                          (int_len==7)? d0 : 4'd11);
-
-    wire [3:0] sym7 = has_sign ? (use_trunc ? d1 :
-                          (int_len==8)? d1 :
-                          (int_len==7)? d0 : 4'd11)
-                       : (use_trunc ? d0 :
-                          (int_len==8)? d0 : 4'd11);
-
-    // DP mask (none for integer-only)
-    wire [7:0] dp_mask = 8'b0;
+    // Construct stream of symbols: [Sign] [Int Digits] [Frac Digits]
+    // We fill sym0..sym7. 
+    // DP position is tracked relative to symbol index.
+    
+    reg [3:0] sym [0:7];
+    reg [7:0] dp_mask; // 1 where DP should be (active high here, inverted later)
+    
+    integer i;
+    always @* begin
+        // Clear
+        for(i=0; i<8; i=i+1) sym[i] = 4'd11; // blank
+        dp_mask = 8'b0;
+        
+        // Fill logic
+        // Pointer to current symbol slot
+        i = 0;
+        
+        // 1. Sign
+        if (has_sign) begin
+            sym[i] = 4'd10; // '-'
+            i = i + 1;
+        end
+        
+        // 2. Integer digits (MSB first)
+        if (int_len >= 5) begin sym[i] = d4; i=i+1; end
+        if (int_len >= 4) begin sym[i] = d3; i=i+1; end
+        if (int_len >= 3) begin sym[i] = d2; i=i+1; end
+        if (int_len >= 2) begin sym[i] = d1; i=i+1; end
+        sym[i] = d0; 
+        
+        // Decimal point goes after this digit (d0)
+        if (has_frac) dp_mask[i] = 1'b1;
+        i = i + 1;
+        
+        // 3. Fraction digits
+        if (has_frac && i < 8) begin sym[i] = f3; i=i+1; end
+        if (has_frac && i < 8) begin sym[i] = f2; i=i+1; end
+        if (has_frac && i < 8) begin sym[i] = f1; i=i+1; end
+        if (has_frac && i < 8) begin sym[i] = f0; i=i+1; end
+    end
 
     // ---------------- Windowing ----------------
-    wire [1:0] num_windows = (total_syms > 4) ? 2'd2 : 2'd1;
+    // If we used more than 4 symbols, we need multiple windows
+    wire [3:0] used_syms = i; // 'i' from always block is truncated to 32 bits, but fits in 4
+    wire [1:0] num_windows = (used_syms > 4) ? 2'd2 : 2'd1;
 
     reg [1:0] win_idx;
     always @(posedge clk or posedge rst) begin
@@ -237,28 +176,27 @@ module display_controller(
         else if (start)  win_idx <= (win_idx == num_windows-1) ? 2'd0 : win_idx + 1'b1;
     end
 
-    // pick symbols for current window (MS first)
+    // pick symbols for current window
     reg [3:0] d3_sel,d2_sel,d1_sel,d0_sel;
     reg dp3_sel,dp2_sel,dp1_sel,dp0_sel; // active-low
+    
     always @* begin
-        d3_sel=4'd0; d2_sel=4'd0; d1_sel=4'd0; d0_sel=4'd0;
+        d3_sel=4'd11; d2_sel=4'd11; d1_sel=4'd11; d0_sel=4'd11;
         dp3_sel=1'b1; dp2_sel=1'b1; dp1_sel=1'b1; dp0_sel=1'b1;
+        
         if (error) begin
-            // Display "Err "
-            d3_sel=4'd14; // E
-            d2_sel=4'd15; // r
-            d1_sel=4'd15; // r
-            d0_sel=4'd11; // blank
-        end else if (num_windows==2'd1) begin
-            d3_sel=sym0; d2_sel=sym1; d1_sel=sym2; d0_sel=sym3;
-            dp3_sel=~dp_mask[7]; dp2_sel=~dp_mask[6]; dp1_sel=~dp_mask[5]; dp0_sel=~dp_mask[4];
+            d3_sel=4'd14; d2_sel=4'd15; d1_sel=4'd15; d0_sel=4'd11; // "Err "
         end else begin
-            if (win_idx==2'd0) begin
-                d3_sel=sym0; d2_sel=sym1; d1_sel=sym2; d0_sel=sym3;
-                dp3_sel=~dp_mask[7]; dp2_sel=~dp_mask[6]; dp1_sel=~dp_mask[5]; dp0_sel=~dp_mask[4];
+            if (win_idx == 0) begin
+                d3_sel = sym[0]; dp3_sel = ~dp_mask[0];
+                d2_sel = sym[1]; dp2_sel = ~dp_mask[1];
+                d1_sel = sym[2]; dp1_sel = ~dp_mask[2];
+                d0_sel = sym[3]; dp0_sel = ~dp_mask[3];
             end else begin
-                d3_sel=sym4; d2_sel=sym5; d1_sel=sym6; d0_sel=sym7;
-                dp3_sel=~dp_mask[3]; dp2_sel=~dp_mask[2]; dp1_sel=~dp_mask[1]; dp0_sel=~dp_mask[0];
+                d3_sel = sym[4]; dp3_sel = ~dp_mask[4];
+                d2_sel = sym[5]; dp2_sel = ~dp_mask[5];
+                d1_sel = sym[6]; dp1_sel = ~dp_mask[6];
+                d0_sel = sym[7]; dp0_sel = ~dp_mask[7];
             end
         end
     end
