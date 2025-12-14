@@ -31,9 +31,9 @@ module exp(
     // ==========================================
     // Constants
     // ==========================================
-    localparam signed [31:0] LN2_FIXED = 32'h0000_B172; 
-    localparam signed [31:0] RECIP_LN2 = 32'h0001_7154; 
-    localparam signed [31:0] CORDIC_K  = 32'h0001_3521; 
+    localparam signed [31:0] LN2_FIXED=32'h0000_B172; 
+    localparam signed [31:0] RECIP_LN2=32'h0001_7154; 
+    localparam signed [31:0] CORDIC_K=32'h0001_3521; 
     localparam ITERATIONS = 16;
 
     reg [3:0] state;
@@ -168,19 +168,19 @@ module exp(
                         result<=16'b0;
                     end else begin
                         norm_shift=clz(abs_final);
-                        calc_exp=142-norm_shift+k_integer;
+                        calc_exp=141-norm_shift+k_integer;
                         
                         // Extract 7-bit mantissa for BF16
                         bf16_mant=(abs_final<<norm_shift)>>24;
 
                         // Overflow
                         if(calc_exp>=255) begin
-                            error<= 1;
+                            error<=1;
                             result<=16'h7F80;  // BF16 +Inf
 
                         // Underflow -> 0
                         end else if (calc_exp<=0) begin
-                            result<=0;
+                            result<=16'b0;
 
                         end else begin
                             // Pack BF16: {sign=0, exp[7:0], mant[6:0]}

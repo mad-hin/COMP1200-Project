@@ -353,7 +353,7 @@ module cal_tb();
         
         wait(cal_done);
         #100;
-        $display("Result: %d (Expected: 1)", result);               
+        $display("Result: %d (Expected: 40ec)", result);               
         
          // Test 24: Exponential Operations  (e^(-20)=0.00000000206115)
         $display("\nTest 24: Exponential Operations e^(20)");
@@ -364,7 +364,7 @@ module cal_tb();
         
         wait(cal_done);
         #100;
-        $display("Result: %d (Expected: 310da480)", result);   
+        $display("Result: %d (Expected: 310d)", result);   
         
           // Test 25: Exponential Operations  (e^(-999)=0)
         $display("\nTest 25: Exponential Operations e^(-999)");
@@ -386,7 +386,7 @@ module cal_tb();
         
         wait(cal_done);
         #100;
-        $display("Result: %d (Expected: 4de75e00)", result);      
+        $display("Result: %d (Expected: 4de7)", result);      
                                                                          
         $display("\nAll tests completed!");
         #1000;
