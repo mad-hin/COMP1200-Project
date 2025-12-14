@@ -26,92 +26,90 @@ module mul(
     input wire start,
     input wire signed [`INPUTOUTBIT-1:0] a,
     input wire signed [`INPUTOUTBIT-1:0] b,
-    output reg signed [`INPUTOUTBIT-1:0] result, // 32 bit IEEE754
+    output reg signed [`INPUTOUTBIT-1:0] result, // BF16
     output reg error = 0,
     output reg done
 );
 
-    
-    // Stage 1: Multiplication
-    reg signed [2*`INPUTOUTBIT-1:0] prod_stage1;
+    reg signed [2*`INPUTOUTBIT-1:0] mutilple;
     reg valid_s1;
 
-    // Stage 2: Absolute Value & Sign
-    reg [2*`INPUTOUTBIT-1:0] abs_prod_stage2;
+    reg [2*`INPUTOUTBIT-1:0] absolute_value;
     reg sign_stage2;
     reg valid_s2;
 
-    // Stage 3: Leading Zero/One Detection (Exponent Prep)
-    reg [5:0] leading_pos_stage3;
-    reg [2*`INPUTOUTBIT-1:0] abs_prod_stage3;
+    reg [5:0] leading;
+    reg [2*`INPUTOUTBIT-1:0] abs_mutilple;
     reg sign_stage3;
     reg valid_s3;
-    reg [7:0] final_exp;
-    reg [22:0] final_mant;
-    reg [63:0] shifted_mant;
 
-    function [5:0] get_leading_one;
-        input [63:0] val;
+    reg [7:0] bf16_exp;          
+    reg [6:0] bf16_mant;         
+    reg [31:0] shifted_mant;
+
+    function [5:0] get_leading;
+        input [2*`INPUTOUTBIT-1:0] val;
         integer i;
         begin
-            get_leading_one = 0;
-            // Scan from bit 63 down to 0
-            for (i = 0; i < 64; i = i + 1) begin
-                if (val[i]) get_leading_one = i[5:0];
+            get_leading = 0;
+            // Scan from bit 31 down to 0
+            for (i = 0; i < 32; i = i + 1) begin
+                if (val[i])get_leading=i[5:0];
             end
         end
     endfunction
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            result    <= 0;
-            done      <= 0;
-            error     <= 0;
-            valid_s1  <= 0;
-            valid_s2  <= 0;
-            valid_s3  <= 0;
+            result<=0;
+            done<=0;
+            error<=0;
+            valid_s1<=0;
+            valid_s2<=0;
+            valid_s3<=0;
         end else begin
             
             if (start) begin
-                prod_stage1 <= a * b;
-                valid_s1    <= 1;
-                done        <= 0; // Reset done when new calc starts
+                mutilple<=a*b;
+                valid_s1<=1;
+                done<=0; 
             end else begin
-                valid_s1    <= 0;
+                valid_s1<=0;
             end
 
             if (valid_s1) begin
-                sign_stage2 <= prod_stage1[2*`INPUTOUTBIT-1];
+                sign_stage2<=mutilple[2*`INPUTOUTBIT-1];
                 // If negative, invert. If positive, pass through.
-                abs_prod_stage2 <= prod_stage1[2*`INPUTOUTBIT-1] ? -prod_stage1 : prod_stage1;
-                valid_s2 <= 1;
+                absolute_value<=mutilple[2*`INPUTOUTBIT-1]? -mutilple:mutilple;
+                valid_s2<=1;
             end else begin
-                valid_s2 <= 0;
+                valid_s2<=0;
             end
 
             if (valid_s2) begin
                 // Find the index of the highest set bit
-                leading_pos_stage3 <= get_leading_one(abs_prod_stage2);
-                abs_prod_stage3    <= abs_prod_stage2;
-                sign_stage3        <= sign_stage2;
-                valid_s3           <= 1;
+                leading<=get_leading(absolute_value);
+                abs_mutilple<=absolute_value;
+                sign_stage3<=sign_stage2;
+                valid_s3<=1;
             end else begin
-                valid_s3 <= 0;
+                valid_s3<=0;
             end
 
             if (valid_s3) begin
-                if (abs_prod_stage3 == 0) begin
-                    result <= 0;
+                if (abs_mutilple==0) begin
+                    result<=0;
                 end else begin
-                    final_exp = 8'd127 + leading_pos_stage3;        
-                    if (leading_pos_stage3 >= 23) begin
-                        shifted_mant = abs_prod_stage3 >> (leading_pos_stage3 - 23);
+                    bf16_exp=8'd127+leading;    
+                    // Shift to get the 7 fractional bits after the hidden 1   
+                    if (leading>=7) begin
+                        shifted_mant=abs_mutilple>>(leading-7);
                     end else begin
-                        shifted_mant = abs_prod_stage3 << (23 - leading_pos_stage3);
+                        shifted_mant=abs_mutilple<<(7-leading);
                     end
-                    // Mask out the hidden 1 (bit 23) and take lower 23 bits
-                    final_mant = shifted_mant[22:0];
-                    result <= {sign_stage3, final_exp, final_mant};
+                    // Mask out the hidden 1 (bit 7) and take lower 7 bits
+                    bf16_mant=shifted_mant[6:0];
+                    result<={sign_stage3, bf16_exp, bf16_mant};
                 end
                 
                 done <= 1;

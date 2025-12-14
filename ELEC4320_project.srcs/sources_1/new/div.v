@@ -26,24 +26,26 @@ module div(
     input wire start,
     input wire signed [`INPUTOUTBIT-1:0] a,
     input wire signed [`INPUTOUTBIT-1:0] b,
-    output reg signed [`INPUTOUTBIT-1:0] result, // 32 bit IEEE754
+    output reg signed [`INPUTOUTBIT-1:0] result, // BF16
     output reg error = 0,
     output reg done
 );
     
     reg sign;
     integer leading;
-    reg [31:0] dividend, divisor;
-    reg [31:0] quotient;
-    reg [31:0] remainder;
+    reg [`INPUTOUTBIT-1:0] dividend, divisor;
+    reg [`INPUTOUTBIT-1:0] quotient;
+    reg [`INPUTOUTBIT-1:0] remainder;
     
     reg [4:0] integer_count;
     reg [5:0] fraction_count;
-    reg [23:0] fraction_bits;
-    reg [55:0] combined;
-    reg [7:0] exp;
-    reg [22:0] mant;
-    
+    reg [7:0] fraction_bits;
+
+    reg [23:0] combined;
+    reg [7:0] bf16_exp;
+    reg [6:0] bf16_mant;
+
+
     reg [1:0] state;
 
     localparam S_IDLE=0,
@@ -66,18 +68,12 @@ module div(
                         error<=1;
                         done<=1;
                     end else begin
-                        sign<=a[31]^b[31];
-                       if (a[31])
-                           dividend<=-a;
-                        else
-                           dividend<=a;
-                        if (b[31])
-                           divisor<=-b;
-                        else
-                           divisor<=b;
+                        sign<=a[`INPUTOUTBIT-1]^b[`INPUTOUTBIT-1];
+                        dividend<=a[`INPUTOUTBIT-1]? -a: a;
+                        divisor<=b[`INPUTOUTBIT-1]? -b: b;
                         quotient<=0;
                         remainder<=0;
-                        integer_count<=31;
+                        integer_count<=`INPUTOUTBIT-1;
                         fraction_count<=0;
                         fraction_bits<=0;
                         state<=S_INTDIV;
@@ -98,35 +94,39 @@ module div(
                     integer_count<=integer_count-1;
             end
 
-            // Fractional long division
+            // Fractional long division (7 bits for BF16)
             S_FRACTIONDIV: begin
                 remainder=remainder<<1;
                 if (remainder>=divisor) begin
                     remainder=remainder-divisor;
-                    fraction_bits[23-fraction_count]=1;
+                    fraction_bits[7-fraction_count]=1;
                 end else begin
-                    fraction_bits[23-fraction_count]=0;
+                    fraction_bits[7-fraction_count]=0;
                 end
 
-                if (fraction_count==23)
+                if (fraction_count==7)
                     state<=S_OUTPUT;
                 else
                     fraction_count<=fraction_count+1;
             end
 
-            // Convert to IEEE-754 float for output
+            // Convert to BF16 for output
             S_OUTPUT: begin
-                combined={quotient,fraction_bits};
+                combined={quotient, fraction_bits};
                 
-                leading=55;
+                leading=23;
                 while (leading>=0 && combined[leading]==0)
                     leading=leading-1;
-                
-                
-                exp=8'd127+(leading-24);
-                mant=(combined<<(55-leading))>>32;
-                result<={sign, exp, mant[22:0]};
-              
+
+                if (leading<0) begin
+                    // Result is zero
+                    result<=16'b0;
+                end else begin
+                    bf16_exp=8'd127+(leading-8);
+                    bf16_mant=(combined<<(23-leading))>>16;
+                    result<={sign, bf16_exp, bf16_mant[6:0]};
+                end
+
                 state<=S_IDLE;
                 done<=1;
             end
