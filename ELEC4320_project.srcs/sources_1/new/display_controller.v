@@ -1,12 +1,10 @@
 `timescale 1ns / 1ps
 `include "define.vh"
-module display_controller #(
-    parameter integer REFRESH_BITS   = 16,   // refresh for digit scan
-    parameter integer PAGE_BITS      = 26    // page duration
-)(
+
+module display_controller(
     input wire clk,
     input wire rst,
-    input wire [`INPUTOUTBIT-1:0] result, // IEEE 754 single precision
+    input wire [`INPUTOUTBIT-1:0] result, // BF16
     input wire error,
     input wire start,
     output reg  [6:0] seg,
@@ -14,349 +12,303 @@ module display_controller #(
     output reg  [15:0] led,
     output reg  dp
 );
+    // ---------------- BF16 decode to signed Q16.16 ----------------
+    wire        sign_bit  = result[15];
+    wire [7:0]  exp_field = result[14:7];
+    wire [6:0]  man_field = result[6:0]; 
 
-    // ----------------------------------------------------------------
-    // Constants / helpers
-    // ----------------------------------------------------------------
-    localparam integer SCALE = 100000000; // 8 fractional digits (max 99,999,999)
+    // Build unsigned magnitude: 1.mantissa in Q16.16 (24 bits keep margin)
+    wire [23:0] sig_q = {1'b1, man_field, 16'd0}; // 1.M * 2^16
 
-    // Binary to BCD (8 digits) via double-dabble for 27-bit input
-    function automatic [31:0] b2bcd8;
-        input [26:0] bin; // supports up to 99,999,999
-        integer i;
-        reg [31:0] bcd; // 8 digits, [31:28] is MSD
-        begin
-            bcd = 32'd0;
-            for (i = 26; i >= 0; i = i - 1) begin
-                // add 3 to digits >=5
-                if (bcd[31:28] >= 5) bcd[31:28] = bcd[31:28] + 4'd3;
-                if (bcd[27:24] >= 5) bcd[27:24] = bcd[27:24] + 4'd3;
-                if (bcd[23:20] >= 5) bcd[23:20] = bcd[23:20] + 4'd3;
-                if (bcd[19:16] >= 5) bcd[19:16] = bcd[19:16] + 4'd3;
-                if (bcd[15:12] >= 5) bcd[15:12] = bcd[15:12] + 4'd3;
-                if (bcd[11:8]  >= 5) bcd[11:8]  = bcd[11:8]  + 4'd3;
-                if (bcd[7:4]   >= 5) bcd[7:4]   = bcd[7:4]   + 4'd3;
-                if (bcd[3:0]   >= 5) bcd[3:0]   = bcd[3:0]   + 4'd3;
-                // shift left and bring in next bit
-                bcd = {bcd[30:0], bin[i]};
-            end
-            b2bcd8 = bcd;
-        end
-    endfunction
+    wire signed [8:0] e_bias = {1'b0,exp_field} - 9'sd127;
 
-    function integer dec_digits;
-        input [63:0] v;
-        integer k;
-        reg   [63:0] t;
-        begin
-            t = v;
-            dec_digits = 1;
-            for (k = 0; k < 19; k = k + 1) begin
-                if (t >= 10) begin
-                    t = t / 10;
-                    dec_digits = dec_digits + 1;
-                end
-            end
-        end
-    endfunction
-
-    function [6:0] seg_encode;
-        input [3:0] val;
-        begin
-            case (val)
-                4'h0: seg_encode = 7'b1000000;
-                4'h1: seg_encode = 7'b1111001;
-                4'h2: seg_encode = 7'b0100100;
-                4'h3: seg_encode = 7'b0110000;
-                4'h4: seg_encode = 7'b0011001;
-                4'h5: seg_encode = 7'b0010010;
-                4'h6: seg_encode = 7'b0000010;
-                4'h7: seg_encode = 7'b1111000;
-                4'h8: seg_encode = 7'b0000000;
-                4'h9: seg_encode = 7'b0010000;
-                4'hA: seg_encode = 7'b0111111; // '-'
-                4'hB: seg_encode = 7'b0000110; // 'E'
-                4'hC: seg_encode = 7'b0101111; // 'r'
-                default: seg_encode = 7'b1111111; // blank
-            endcase
-        end
-    endfunction
-
-    // ----------------------------------------------------------------
-    // IEEE-754 unpack
-    // ----------------------------------------------------------------
-    reg        sign_bit;
-    reg [7:0]  exp_bits;
-    reg [22:0] frac_bits;
-    reg signed [9:0]  exp_unbias;
-    reg [47:0] mantissa_ext;
-
-    reg signed [63:0] int_part_abs;
-    reg        [63:0] frac_scaled_abs;
-
-    integer shift_amt;
-    reg [63:0] rem_bits;
-
+    reg [47:0] val_mag_q; // unsigned magnitude Q16.16 after shift
     always @* begin
-        sign_bit  = result[`INPUTOUTBIT-1];
-        exp_bits  = result[`INPUTOUTBIT-2 -: 8];
-        frac_bits = result[22:0];
-
-        if (exp_bits == 8'd0) begin
-            mantissa_ext = {1'b0, frac_bits}; // subnormal
-            exp_unbias   = -126;
+        if (e_bias >= 0) begin
+            case (e_bias[4:0]) // 0..31
+                5'd0 : val_mag_q = {24'd0, sig_q};
+                5'd1 : val_mag_q = {24'd0, sig_q} << 1;
+                5'd2 : val_mag_q = {24'd0, sig_q} << 2;
+                5'd3 : val_mag_q = {24'd0, sig_q} << 3;
+                5'd4 : val_mag_q = {24'd0, sig_q} << 4;
+                5'd5 : val_mag_q = {24'd0, sig_q} << 5;
+                5'd6 : val_mag_q = {24'd0, sig_q} << 6;
+                5'd7 : val_mag_q = {24'd0, sig_q} << 7;
+                5'd8 : val_mag_q = {24'd0, sig_q} << 8;
+                5'd9 : val_mag_q = {24'd0, sig_q} << 9;
+                5'd10: val_mag_q = {24'd0, sig_q} << 10;
+                5'd11: val_mag_q = {24'd0, sig_q} << 11;
+                5'd12: val_mag_q = {24'd0, sig_q} << 12;
+                5'd13: val_mag_q = {24'd0, sig_q} << 13;
+                5'd14: val_mag_q = {24'd0, sig_q} << 14;
+                5'd15: val_mag_q = {24'd0, sig_q} << 15;
+                5'd16: val_mag_q = {24'd0, sig_q} << 16;
+                5'd17: val_mag_q = {24'd0, sig_q} << 17;
+                5'd18: val_mag_q = {24'd0, sig_q} << 18;
+                5'd19: val_mag_q = {24'd0, sig_q} << 19;
+                5'd20: val_mag_q = {24'd0, sig_q} << 20;
+                5'd21: val_mag_q = {24'd0, sig_q} << 21;
+                5'd22: val_mag_q = {24'd0, sig_q} << 22;
+                5'd23: val_mag_q = {24'd0, sig_q} << 23;
+                5'd24: val_mag_q = {24'd0, sig_q} << 24;
+                5'd25: val_mag_q = {24'd0, sig_q} << 25;
+                5'd26: val_mag_q = {24'd0, sig_q} << 26;
+                5'd27: val_mag_q = {24'd0, sig_q} << 27;
+                5'd28: val_mag_q = {24'd0, sig_q} << 28;
+                5'd29: val_mag_q = {24'd0, sig_q} << 29;
+                5'd30: val_mag_q = {24'd0, sig_q} << 30;
+                default: val_mag_q = {24'd0, sig_q} << 31;
+            endcase
         end else begin
-            mantissa_ext = {1'b1, frac_bits}; // normalized (24 bits)
-            exp_unbias   = exp_bits - 127;
-        end
-
-        int_part_abs    = 0;
-        frac_scaled_abs = 0;
-        shift_amt       = 0;
-        rem_bits        = 0;
-
-        if (exp_unbias >= 23) begin
-            int_part_abs    = mantissa_ext <<< (exp_unbias - 23);
-            frac_scaled_abs = 0;
-        end else begin
-            shift_amt = 23 - exp_unbias;
-            if (shift_amt >= 63) begin
-                int_part_abs    = 0;
-                frac_scaled_abs = 0;
-            end else begin
-                int_part_abs = mantissa_ext >> shift_amt;
-                rem_bits     = mantissa_ext & ((64'd1 << shift_amt) - 1);
-                frac_scaled_abs = (rem_bits * SCALE) >> shift_amt; // truncate
-            end
+            case (-e_bias[4:0])
+                5'd0 : val_mag_q = {24'd0, sig_q};
+                5'd1 : val_mag_q = {24'd0, sig_q} >> 1;
+                5'd2 : val_mag_q = {24'd0, sig_q} >> 2;
+                5'd3 : val_mag_q = {24'd0, sig_q} >> 3;
+                5'd4 : val_mag_q = {24'd0, sig_q} >> 4;
+                5'd5 : val_mag_q = {24'd0, sig_q} >> 5;
+                5'd6 : val_mag_q = {24'd0, sig_q} >> 6;
+                5'd7 : val_mag_q = {24'd0, sig_q} >> 7;
+                5'd8 : val_mag_q = {24'd0, sig_q} >> 8;
+                5'd9 : val_mag_q = {24'd0, sig_q} >> 9;
+                5'd10: val_mag_q = {24'd0, sig_q} >> 10;
+                5'd11: val_mag_q = {24'd0, sig_q} >> 11;
+                5'd12: val_mag_q = {24'd0, sig_q} >> 12;
+                5'd13: val_mag_q = {24'd0, sig_q} >> 13;
+                5'd14: val_mag_q = {24'd0, sig_q} >> 14;
+                5'd15: val_mag_q = {24'd0, sig_q} >> 15;
+                5'd16: val_mag_q = {24'd0, sig_q} >> 16;
+                5'd17: val_mag_q = {24'd0, sig_q} >> 17;
+                5'd18: val_mag_q = {24'd0, sig_q} >> 18;
+                5'd19: val_mag_q = {24'd0, sig_q} >> 19;
+                5'd20: val_mag_q = {24'd0, sig_q} >> 20;
+                5'd21: val_mag_q = {24'd0, sig_q} >> 21;
+                5'd22: val_mag_q = {24'd0, sig_q} >> 22;
+                5'd23: val_mag_q = {24'd0, sig_q} >> 23;
+                5'd24: val_mag_q = {24'd0, sig_q} >> 24;
+                5'd25: val_mag_q = {24'd0, sig_q} >> 25;
+                5'd26: val_mag_q = {24'd0, sig_q} >> 26;
+                5'd27: val_mag_q = {24'd0, sig_q} >> 27;
+                5'd28: val_mag_q = {24'd0, sig_q} >> 28;
+                5'd29: val_mag_q = {24'd0, sig_q} >> 29;
+                5'd30: val_mag_q = {24'd0, sig_q} >> 30;
+                default: val_mag_q = 48'd0; // underflow
+            endcase
         end
     end
 
-    // Signed versions
-    wire signed [63:0] int_part  = sign_bit ? -int_part_abs  : int_part_abs;
-    wire signed [63:0] frac_part = sign_bit ? -$signed({1'b0, frac_scaled_abs}) : $signed({1'b0, frac_scaled_abs});
+    // Apply sign after shift
+    wire signed [47:0] val_q_signed = sign_bit ? -$signed({1'b0,val_mag_q[46:0]}) 
+                                               : $signed({1'b0,val_mag_q[46:0]});
 
-    // ----------------------------------------------------------------
-    // Character buffer (max 9 chars: sign + 8 significant digits)
-    // ----------------------------------------------------------------
-    reg [3:0] chars [0:8];
-    integer   char_count;
-    integer   dec_point_idx; // index of digit before '.', -1 if none
+    // integer part (truncate fraction)
+    wire signed [31:0] val_int = val_q_signed[47:16];
+    wire        val_sign = val_int[31];
+    wire [31:0] abs_int  = val_sign ? (~val_int + 1'b1) : val_int;
 
-    reg [26:0] int_clip;
-    reg [26:0] frac_clip;
-    reg [31:0] int_bcd;
-    reg [31:0] frac_bcd;
-    integer    int_len;
-    integer    frac_need;
-    reg        sign_needed;
-    integer    idx;
+    // --------------- Decimal digits (no loops) --------------------
+    // up to 8 digits (most significant)
+    wire [3:0] d7 = (abs_int / 32'd10000000) % 10;
+    wire [3:0] d6 = (abs_int / 32'd1000000 ) % 10;
+    wire [3:0] d5 = (abs_int / 32'd100000  ) % 10;
+    wire [3:0] d4 = (abs_int / 32'd10000   ) % 10;
+    wire [3:0] d3 = (abs_int / 32'd1000    ) % 10;
+    wire [3:0] d2 = (abs_int / 32'd100     ) % 10;
+    wire [3:0] d1 = (abs_int / 32'd10      ) % 10;
+    wire [3:0] d0 =  abs_int % 10;
 
+    wire [3:0] int_len = (abs_int >= 32'd10000000) ? 4'd8 :
+                         (abs_int >= 32'd1000000 ) ? 4'd7 :
+                         (abs_int >= 32'd100000  ) ? 4'd6 :
+                         (abs_int >= 32'd10000   ) ? 4'd5 :
+                         (abs_int >= 32'd1000    ) ? 4'd4 :
+                         (abs_int >= 32'd100     ) ? 4'd3 :
+                         (abs_int >= 32'd10      ) ? 4'd2 : 4'd1;
+
+    wire has_sign = val_sign;
+    wire [3:0] max_digits = has_sign ? 4'd7 : 4'd8; // digit slots (sign uses 1)
+    wire use_trunc = (int_len > max_digits);
+
+    // total symbols (including sign if any)
+    wire [3:0] total_syms = use_trunc ? (max_digits + has_sign) : (int_len + has_sign);
+
+    // Symbol codes (0-9 digits, 10 = '-', 11 = blank)
+    wire [3:0] sym0 = has_sign ? 4'd10 : use_trunc ? d7 :
+                      (int_len==8)? d7 :
+                      (int_len==7)? d6 :
+                      (int_len==6)? d5 :
+                      (int_len==5)? d4 :
+                      (int_len==4)? d3 :
+                      (int_len==3)? d2 :
+                      (int_len==2)? d1 : d0;
+
+    wire [3:0] sym1 = has_sign ? (use_trunc ? d7 :
+                          (int_len==8)? d7 :
+                          (int_len==7)? d6 :
+                          (int_len==6)? d5 :
+                          (int_len==5)? d4 :
+                          (int_len==4)? d3 :
+                          (int_len==3)? d2 :
+                          (int_len==2)? d1 : d0)
+                       : (use_trunc ? d6 :
+                          (int_len==8)? d6 :
+                          (int_len==7)? d5 :
+                          (int_len==6)? d4 :
+                          (int_len==5)? d3 :
+                          (int_len==4)? d2 :
+                          (int_len==3)? d1 :
+                          (int_len==2)? d0 : 4'd11);  // blank
+
+    wire [3:0] sym2 = has_sign ? (use_trunc ? d6 :
+                          (int_len==8)? d6 :
+                          (int_len==7)? d5 :
+                          (int_len==6)? d4 :
+                          (int_len==5)? d3 :
+                          (int_len==4)? d2 :
+                          (int_len==3)? d1 :
+                          (int_len==2)? d0 : 4'd11)
+                       : (use_trunc ? d5 :
+                          (int_len==8)? d5 :
+                          (int_len==7)? d4 :
+                          (int_len==6)? d3 :
+                          (int_len==5)? d2 :
+                          (int_len==4)? d1 :
+                          (int_len==3)? d0 : 4'd11);
+
+    wire [3:0] sym3 = has_sign ? (use_trunc ? d5 :
+                          (int_len==8)? d5 :
+                          (int_len==7)? d4 :
+                          (int_len==6)? d3 :
+                          (int_len==5)? d2 :
+                          (int_len==4)? d1 :
+                          (int_len==3)? d0 : 4'd11)
+                       : (use_trunc ? d4 :
+                          (int_len==8)? d4 :
+                          (int_len==7)? d3 :
+                          (int_len==6)? d2 :
+                          (int_len==5)? d1 :
+                          (int_len==4)? d0 : 4'd11);
+
+    wire [3:0] sym4 = has_sign ? (use_trunc ? d4 :
+                          (int_len==8)? d4 :
+                          (int_len==7)? d3 :
+                          (int_len==6)? d2 :
+                          (int_len==5)? d1 :
+                          (int_len==4)? d0 : 4'd11)
+                       : (use_trunc ? d3 :
+                          (int_len==8)? d3 :
+                          (int_len==7)? d2 :
+                          (int_len==6)? d1 :
+                          (int_len==5)? d0 : 4'd11);
+
+    wire [3:0] sym5 = has_sign ? (use_trunc ? d3 :
+                          (int_len==8)? d3 :
+                          (int_len==7)? d2 :
+                          (int_len==6)? d1 :
+                          (int_len==5)? d0 : 4'd11)
+                       : (use_trunc ? d2 :
+                          (int_len==8)? d2 :
+                          (int_len==7)? d1 :
+                          (int_len==6)? d0 : 4'd11);
+
+    wire [3:0] sym6 = has_sign ? (use_trunc ? d2 :
+                          (int_len==8)? d2 :
+                          (int_len==7)? d1 :
+                          (int_len==6)? d0 : 4'd11)
+                       : (use_trunc ? d1 :
+                          (int_len==8)? d1 :
+                          (int_len==7)? d0 : 4'd11);
+
+    wire [3:0] sym7 = has_sign ? (use_trunc ? d1 :
+                          (int_len==8)? d1 :
+                          (int_len==7)? d0 : 4'd11)
+                       : (use_trunc ? d0 :
+                          (int_len==8)? d0 : 4'd11);
+
+    // DP mask (none for integer-only)
+    wire [7:0] dp_mask = 8'b0;
+
+    // ---------------- Windowing ----------------
+    wire [1:0] num_windows = (total_syms > 4) ? 2'd2 : 2'd1;
+
+    reg [1:0] win_idx;
+    always @(posedge clk or posedge rst) begin
+        if (rst) win_idx <= 2'd0;
+        else if (start)  win_idx <= (win_idx == num_windows-1) ? 2'd0 : win_idx + 1'b1;
+    end
+
+    // pick symbols for current window (MS first)
+    reg [3:0] d3_sel,d2_sel,d1_sel,d0_sel;
+    reg dp3_sel,dp2_sel,dp1_sel,dp0_sel; // active-low
     always @* begin
-        char_count    = 0;
-        dec_point_idx = -1;
-        // clear buffer
-        for (idx = 0; idx < 9; idx = idx + 1)
-            chars[idx] = 4'hF;
-
+        d3_sel=4'd0; d2_sel=4'd0; d1_sel=4'd0; d0_sel=4'd0;
+        dp3_sel=1'b1; dp2_sel=1'b1; dp1_sel=1'b1; dp0_sel=1'b1;
         if (error) begin
-            chars[0]    = 4'hB; // E
-            chars[1]    = 4'hC; // r
-            chars[2]    = 4'hC; // r
-            char_count  = 3;
-            dec_point_idx = -1;
-        end else if (start) begin
-            // clip to 8 digits each
-            int_clip  = (int_part_abs > 99_999_999)  ? 27'd99_999_999  : int_part_abs[26:0];
-            frac_clip = (frac_scaled_abs > 99_999_999)? 27'd99_999_999 : frac_scaled_abs[26:0];
-
-            int_bcd  = b2bcd8(int_clip);
-            frac_bcd = b2bcd8(frac_clip);
-
-            sign_needed = (int_part < 0) || (int_part == 0 && frac_part < 0);
-
-            // integer length: find first non-zero digit in int_bcd[31:28] (MSD) down to [3:0]
-            if      (int_bcd[31:28] != 0) int_len = 8;
-            else if (int_bcd[27:24] != 0) int_len = 7;
-            else if (int_bcd[23:20] != 0) int_len = 6;
-            else if (int_bcd[19:16] != 0) int_len = 5;
-            else if (int_bcd[15:12] != 0) int_len = 4;
-            else if (int_bcd[11:8]  != 0) int_len = 3;
-            else if (int_bcd[7:4]   != 0) int_len = 2;
-            else if (int_bcd[3:0]   != 0) int_len = 1;
-            else                          int_len = 1; // zero
-
-            if (int_len >= 8)
-                frac_need = 0;
-            else
-                frac_need = 8 - int_len;
-
-            // sign
-            if (sign_needed) begin
-                chars[char_count] = 4'hA;
-                char_count = char_count + 1;
+            // Display "Err "
+            d3_sel=4'd14; // E
+            d2_sel=4'd15; // r
+            d1_sel=4'd15; // r
+            d0_sel=4'd11; // blank
+        end else if (num_windows==2'd1) begin
+            d3_sel=sym0; d2_sel=sym1; d1_sel=sym2; d0_sel=sym3;
+            dp3_sel=~dp_mask[7]; dp2_sel=~dp_mask[6]; dp1_sel=~dp_mask[5]; dp0_sel=~dp_mask[4];
+        end else begin
+            if (win_idx==2'd0) begin
+                d3_sel=sym0; d2_sel=sym1; d1_sel=sym2; d0_sel=sym3;
+                dp3_sel=~dp_mask[7]; dp2_sel=~dp_mask[6]; dp1_sel=~dp_mask[5]; dp0_sel=~dp_mask[4];
+            end else begin
+                d3_sel=sym4; d2_sel=sym5; d1_sel=sym6; d0_sel=sym7;
+                dp3_sel=~dp_mask[3]; dp2_sel=~dp_mask[2]; dp1_sel=~dp_mask[1]; dp0_sel=~dp_mask[0];
             end
+        end
+    end
 
-            // integer digits MSB-first from int_bcd
-            // int_len tells how many digits to emit, starting at the correct MSB
-            case (int_len)
-                8: begin
-                    chars[char_count] = int_bcd[31:28]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[27:24]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[23:20]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[19:16]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[15:12]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[11:8];  char_count = char_count + 1;
-                    chars[char_count] = int_bcd[7:4];   char_count = char_count + 1;
-                    chars[char_count] = int_bcd[3:0];   char_count = char_count + 1;
-                end
-                7: begin
-                    chars[char_count] = int_bcd[27:24]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[23:20]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[19:16]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[15:12]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[11:8];  char_count = char_count + 1;
-                    chars[char_count] = int_bcd[7:4];   char_count = char_count + 1;
-                    chars[char_count] = int_bcd[3:0];   char_count = char_count + 1;
-                end
-                6: begin
-                    chars[char_count] = int_bcd[23:20]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[19:16]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[15:12]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[11:8];  char_count = char_count + 1;
-                    chars[char_count] = int_bcd[7:4];   char_count = char_count + 1;
-                    chars[char_count] = int_bcd[3:0];   char_count = char_count + 1;
-                end
-                5: begin
-                    chars[char_count] = int_bcd[19:16]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[15:12]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[11:8];  char_count = char_count + 1;
-                    chars[char_count] = int_bcd[7:4];   char_count = char_count + 1;
-                    chars[char_count] = int_bcd[3:0];   char_count = char_count + 1;
-                end
-                4: begin
-                    chars[char_count] = int_bcd[15:12]; char_count = char_count + 1;
-                    chars[char_count] = int_bcd[11:8];  char_count = char_count + 1;
-                    chars[char_count] = int_bcd[7:4];   char_count = char_count + 1;
-                    chars[char_count] = int_bcd[3:0];   char_count = char_count + 1;
-                end
-                3: begin
-                    chars[char_count] = int_bcd[11:8];  char_count = char_count + 1;
-                    chars[char_count] = int_bcd[7:4];   char_count = char_count + 1;
-                    chars[char_count] = int_bcd[3:0];   char_count = char_count + 1;
-                end
-                2: begin
-                    chars[char_count] = int_bcd[7:4];   char_count = char_count + 1;
-                    chars[char_count] = int_bcd[3:0];   char_count = char_count + 1;
-                end
-                default: begin
-                    chars[char_count] = int_bcd[3:0];   char_count = char_count + 1; // len=1
-                end
+    // ---------------- 7-seg encode ----------------
+    function [6:0] seg_decode;
+        input [3:0] code;
+        begin
+            case (code)
+                4'd0: seg_decode = 7'b1000000;
+                4'd1: seg_decode = 7'b1111001;
+                4'd2: seg_decode = 7'b0100100;
+                4'd3: seg_decode = 7'b0110000;
+                4'd4: seg_decode = 7'b0011001;
+                4'd5: seg_decode = 7'b0010010;
+                4'd6: seg_decode = 7'b0000010;
+                4'd7: seg_decode = 7'b1111000;
+                4'd8: seg_decode = 7'b0000000;
+                4'd9: seg_decode = 7'b0010000;
+                4'd10: seg_decode = 7'b0111111; // '-'
+                4'd11: seg_decode = 7'b1111111; // blank
+                4'd14: seg_decode = 7'b0000110; // 'E'
+                4'd15: seg_decode = 7'b0101111; // 'r'
+                default: seg_decode = 7'b1111111;
             endcase
-
-            // fractional digits: take the top frac_need digits from frac_bcd MSB-first
-            if (frac_need != 0) begin
-                if (frac_need >= 1) begin chars[char_count] = frac_bcd[31:28]; char_count = char_count + 1; end
-                if (frac_need >= 2) begin chars[char_count] = frac_bcd[27:24]; char_count = char_count + 1; end
-                if (frac_need >= 3) begin chars[char_count] = frac_bcd[23:20]; char_count = char_count + 1; end
-                if (frac_need >= 4) begin chars[char_count] = frac_bcd[19:16]; char_count = char_count + 1; end
-                if (frac_need >= 5) begin chars[char_count] = frac_bcd[15:12]; char_count = char_count + 1; end
-                if (frac_need >= 6) begin chars[char_count] = frac_bcd[11:8];  char_count = char_count + 1; end
-                if (frac_need >= 7) begin chars[char_count] = frac_bcd[7:4];   char_count = char_count + 1; end
-                if (frac_need >= 8) begin chars[char_count] = frac_bcd[3:0];   char_count = char_count + 1; end
-                dec_point_idx = (sign_needed ? int_len : int_len - 1);
-            end else begin
-                dec_point_idx = -1;
-            end
         end
-    end
+    endfunction
 
-    // ----------------------------------------------------------------
-    // Timing: digit refresh and page switching
-    // ----------------------------------------------------------------
-    reg [REFRESH_BITS-1:0] refresh_cnt;
-    reg [PAGE_BITS-1:0]    page_cnt;
-    reg [1:0]              active_digit;
-    reg [2:0]              page_idx;
-    reg [2:0]              page_max;
-
+    // ---------------- Multiplex scan ----------------
+    reg [23:0] refresh_cnt;
     always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            refresh_cnt  <= 0;
-            active_digit <= 0;
-        end else if (start) begin
-            refresh_cnt  <= refresh_cnt + 1'b1;
-            active_digit <= refresh_cnt[REFRESH_BITS-1:REFRESH_BITS-2];
-        end
+        if (rst) refresh_cnt <= 24'd0;
+        else     refresh_cnt <= refresh_cnt + 1'b1;
     end
-
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            page_cnt <= 0;
-            page_idx <= 0;
-        end else if (start) begin
-            page_cnt <= page_cnt + 1'b1;
-            if (page_cnt[PAGE_BITS-1]) begin
-                page_cnt <= 0;
-                if (page_idx == page_max)
-                    page_idx <= 0;
-                else
-                    page_idx <= page_idx + 1'b1;
-            end
-        end
-    end
+    wire [1:0] mux_sel = refresh_cnt[18:17];
 
     always @* begin
-        if (char_count <= 4)
-            page_max = 0;
-        else if (char_count <= 8)
-            page_max = 1;
-        else
-            page_max = 2; // up to 9 chars
+        case (mux_sel)
+            2'd0: begin an=4'b1110; seg=seg_decode(d0_sel); dp=dp0_sel; end
+            2'd1: begin an=4'b1101; seg=seg_decode(d1_sel); dp=dp1_sel; end
+            2'd2: begin an=4'b1011; seg=seg_decode(d2_sel); dp=dp2_sel; end
+            default: begin an=4'b0111; seg=seg_decode(d3_sel); dp=dp3_sel; end
+        endcase
     end
 
-    // ----------------------------------------------------------------
-    // Drive 7-seg and dp
-    // ----------------------------------------------------------------
-    reg [3:0] current_char;
-    reg       dp_on;
-    integer   global_offset;
-    integer   char_idx;
-
+    // ---------------- LED window indicator ----------------
     always @* begin
-        if (!start) begin
-            an  = 4'b1111;
-            seg = 7'b1111111;
-            dp  = 1'b1;
-        end else begin
-            // default anodes high (off)
-            an = 4'b1111;
-            an[active_digit] = 1'b0;
-
-            global_offset = page_idx * 4 + active_digit;
-            if (global_offset >= char_count) begin
-                current_char = 4'hF; // blank
-                dp_on = 1'b0;
-            end else begin
-                char_idx = char_count - 1 - global_offset; // LSB-first paging
-                current_char = chars[char_idx];
-                dp_on = (dec_point_idx >= 0) && (char_idx == dec_point_idx);
-            end
-
-            seg = seg_encode(current_char);
-            dp  = dp_on ? 1'b0 : 1'b1; // active low
-        end
+        led = 16'b0;
+        if (error) led[2:0] = 3'b000;
+        else if (num_windows==2'd1) led[2:0] = 3'b000;
+        else led[2:0] = (win_idx==0) ? 3'b001 : 3'b000; // 001 then 000 as example
     end
-
-    // ----------------------------------------------------------------
-    // LED page indicator (LSBs)
-    // ----------------------------------------------------------------
-    always @* begin
-        if (!start) begin
-            led = 16'b0;
-        end else begin
-            led = 16'b0;
-            led[2:0] = page_idx;
-        end
-    end
-
 endmodule

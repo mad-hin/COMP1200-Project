@@ -95,17 +95,17 @@ module alu(
     );
 
     // Operation Modules
-//    add alu_add (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_ADD || sw_reg == `OP_SUB)),
-//        .a(a_val),
-//        .b(b_val),
-//        .result(add_result),
-//        .add_sub_flag(sw_reg == `OP_SUB),
-//        .error(add_error),
-//        .done(add_done)
-//    );
+    add alu_add (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_ADD || sw_reg == `OP_SUB)),
+        .a(a_val),
+        .b(b_val),
+        .result(add_result),
+        .add_sub_flag(sw_reg == `OP_SUB),
+        .error(add_error),
+        .done(add_done)
+    );
 
 //    sub alu_sub (
 //        .clk(clk),
@@ -150,15 +150,15 @@ module alu(
         .done(sqrt_done)
     );
 
-// cos alu_cos (
-//     .clk(clk),
-//     .rst(rst),
-//     .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
-//     .a( sw_reg == `OP_SIN ? (a_val - 16'sd90) : a_val ), // sin(x)=cos(x-90)
-//     .result(cos_result),
-//     .error(cos_error),
-//     .done(cos_done),
-// );
+    cos alu_cos (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
+        .a( sw_reg == `OP_SIN ? (a_val - 16'sd90) : a_val ), // sin(x)=cos(x-90)
+        .result(cos_result),
+        .error(cos_error),
+        .done(cos_done)
+    );
 
     // sin alu_sin (
     //     .clk(clk),
@@ -170,55 +170,55 @@ module alu(
     //     .done(sin_done)
     // );
 
-    // tan alu_tan (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_TAN)),
-    //     .a(a_val),
-    //     .result(tan_result),
-    //     .error(tan_error),
-    //     .done(tan_done)
-    // );
+    tan alu_tan (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_TAN)),
+        .a(a_val),
+        .result(tan_result),
+        .error(tan_error),
+        .done(tan_done)
+    );
 
-    // arcsin alu_asin (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_ASIN)),
-    //     .a(a_val),
-    //     .result(asin_result),
-    //     .error(asin_error),
-    //     .done(asin_done)
-    // );
+    arcsin alu_asin (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_ASIN)),
+        .a(a_val),
+        .result(asin_result),
+        .error(asin_error),
+        .done(asin_done)
+    );
 
-    // arccos alu_acos (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_ACOS)),
-    //     .a(a_val),
-    //     .result(acos_result),
-    //     .error(acos_error),
-    //     .done(acos_done)
-    // );
+    arccos alu_acos (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_ACOS)),
+        .a(a_val),
+        .result(acos_result),
+        .error(acos_error),
+        .done(acos_done)
+    );
 
-//     arctan alu_atan (
-//         .clk(clk),
-//         .rst(rst),
-//         .start(op_start && (sw_reg == `OP_ATAN)),
-//         .a(a_val),
-//         .result(atan_result),
-//         .error(atan_error),
-//         .done(atan_done)
-//     );
+    arctan alu_atan (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_ATAN)),
+        .a(a_val),
+        .result(atan_result),
+        .error(atan_error),
+        .done(atan_done)
+    );
 
-     exp alu_exp (
-         .clk(clk),
-         .rst(rst),
-         .start(op_start && (sw_reg == `OP_EXP)),
-         .a(a_val),
-         .result(exp_result),
-         .error(exp_error),
-         .done(exp_done)
-     );
+    exp alu_exp (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_EXP)),
+        .a(a_val),
+        .result(exp_result),
+        .error(exp_error),
+        .done(exp_done)
+    );
 
     // fac alu_fac (
     //     .clk(clk),
@@ -230,27 +230,27 @@ module alu(
     //     .done(fac_done)
     // );
 
-     log alu_log (
-         .clk(clk),
-         .rst(rst),
-         .start(op_start && (sw_reg == `OP_LOG)),
-         .a(a_val),
-         .b(b_val),
-         .result(log_result),
-         .error(log_error),
-         .done(log_done)
-     );
+    log alu_log (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_LOG)),
+        .a(a_val),
+        .b(b_val),
+        .result(log_result),
+        .error(log_error),
+        .done(log_done)
+    );
 
-//     pow alu_pow (
-//         .clk(clk),
-//         .rst(rst),
-//         .start(op_start && (sw_reg == `OP_POW)),
-//         .a(a_val),
-//         .b(b_val),
-//         .result(pow_result),
-//         .error(pow_error),
-//         .done(pow_done)
-//     );
+    pow alu_pow (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_POW)),
+        .a(a_val),
+        .b(b_val),
+        .result(pow_result),
+        .error(pow_error),
+        .done(pow_done)
+    );
 
     // State machine
     always @(posedge clk or posedge rst) begin
@@ -305,14 +305,14 @@ module alu(
                 WAIT_RESULT: begin
                     // Check which operation completed based on sw_reg
                     case (sw_reg)
-//                        `OP_SUB, `OP_ADD: begin
-//                            if (add_done) begin
-//                                result <= add_result;
-//                                error <= add_error;
-//                                cal_done <= 1;
-//                                state <= OUTPUT;
-//                            end
-//                        end
+                        `OP_SUB, `OP_ADD: begin
+                            if (add_done) begin
+                                result <= add_result;
+                                error <= add_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
                         // `OP_SUB: begin
                         //     if (sub_done) begin
                         //         result <= sub_result;
@@ -321,38 +321,38 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-                         `OP_MUL: begin
-                             if (mul_done) begin
-                                 result <= mul_result;
-                                 error <= mul_error;
-                                 cal_done <= 1;
-                                 state <= OUTPUT;
-                             end
-                         end
-                         `OP_DIV: begin
-                             if (div_done) begin
-                                 result <= div_result;
-                                 error <= div_error;
-                                 cal_done <= 1;
-                                 state <= OUTPUT;
-                             end
-                         end
-                         `OP_SQRT: begin
-                             if (sqrt_done) begin
-                                 result <= sqrt_result;
-                                 error <= sqrt_error;
-                                 cal_done <= 1;
-                                 state <= OUTPUT;
-                             end
-                         end
-//                        `OP_SIN, `OP_COS: begin
-//                            if (cos_done) begin
-//                                result <= cos_result;
-//                                error <= cos_error;
-//                                cal_done <= 1;
-//                                state <= OUTPUT;
-//                            end
-//                        end
+                        `OP_MUL: begin
+                            if (mul_done) begin
+                                result <= mul_result;
+                                error <= mul_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_DIV: begin
+                            if (div_done) begin
+                                result <= div_result;
+                                error <= div_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_SQRT: begin
+                            if (sqrt_done) begin
+                                result <= sqrt_result;
+                                error <= sqrt_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                    `OP_SIN, `OP_COS: begin
+                        if (cos_done) begin
+                            result <= cos_result;
+                            error <= cos_error;
+                            cal_done <= 1;
+                            state <= OUTPUT;
+                        end
+                    end
                         // `OP_SIN: begin
                         //     if (sin_done) begin
                         //         result <= sin_result;
@@ -361,46 +361,46 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-//                        `OP_TAN: begin
-//                            if (tan_done) begin
-//                                result <= tan_result;
-//                                error <= tan_error;
-//                                cal_done <= 1;
-//                                state <= OUTPUT;
-//                            end
-//                        end
-                        // `OP_ASIN: begin
-                        //     if (asin_done) begin
-                        //         result <= asin_result;
-                        //         error <= asin_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
-                        // `OP_ACOS: begin
-                        //     if (acos_done) begin
-                        //         result <= acos_result;
-                        //         error <= acos_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
-                        // `OP_ATAN: begin
-                        //     if (atan_done) begin
-                        //         result <= atan_result;
-                        //         error <= atan_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
-                         `OP_EXP: begin
-                             if (exp_done) begin
-                                 result <= exp_result;
-                                 error <= exp_error;
-                                 cal_done <= 1;
-                                 state <= OUTPUT;
-                             end
-                         end
+                        `OP_TAN: begin
+                            if (tan_done) begin
+                                result <= tan_result;
+                                error <= tan_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_ASIN: begin
+                            if (asin_done) begin
+                                result <= asin_result;
+                                error <= asin_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_ACOS: begin
+                            if (acos_done) begin
+                                result <= acos_result;
+                                error <= acos_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_ATAN: begin
+                            if (atan_done) begin
+                                result <= atan_result;
+                                error <= atan_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_EXP: begin
+                            if (exp_done) begin
+                                result <= exp_result;
+                                error <= exp_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
                         // `OP_FAC: begin
                         //     if (fac_done) begin
                         //         result <= fac_result;
@@ -409,22 +409,22 @@ module alu(
                         //         state <= OUTPUT;
                         //     end
                         // end
-                         `OP_LOG: begin
-                             if (log_done) begin
-                                 result <= log_result;
-                                 error <= log_error;
-                                 cal_done <= 1;
-                                 state <= OUTPUT;
-                             end
-                         end
-                         `OP_POW: begin
-                             if (pow_done) begin
-                                 result <= pow_result;
-                                 error <= pow_error;
-                                 cal_done <= 1;
-                                 state <= OUTPUT;
-                             end
-                         end
+                        `OP_LOG: begin
+                            if (log_done) begin
+                                result <= log_result;
+                                error <= log_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
+                        `OP_POW: begin
+                            if (pow_done) begin
+                                result <= pow_result;
+                                error <= pow_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
                         
                         default: state <= IDLE;
                     endcase
