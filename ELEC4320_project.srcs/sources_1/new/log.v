@@ -22,14 +22,14 @@ module log (
     input  wire clk,
     input  wire rst,
     input  wire start,
-    input  wire signed [31:0] a,   
-    input  wire signed [31:0] b,      
-    output reg  signed [31:0] result, 
+    input  wire signed [`INPUTOUTBIT-1:0] a,   
+    input  wire signed [`INPUTOUTBIT-1:0] b,      
+    output reg  signed [`INPUTOUTBIT-1:0] result,  // BF16
     output reg  error,
     output reg  done
 );
 
-    localparam signed [31:0] ln2_fixed_point = 32'h0000_B172; 
+    localparam signed [`INPUTOUTBIT-1:0] ln2_fixed_point = 32'h0000_B172; 
     localparam ITERATIONS = 16;
 
     reg [4:0] state;
@@ -104,14 +104,16 @@ module log (
     endfunction
 
     // IEEE Signals
-    reg [31:0] ieee_out;
-    reg [7:0]  ieee_exp;
-    reg [22:0] ieee_mant;
+    reg [15:0] bf16_out;
+    reg [7:0]  bf16_exp;
+    reg [6:0]  bf16_mant;
     reg [31:0] abs_final;
     reg [5:0]  norm_shift;
+
     reg signed [31:0] e_ln2;
     reg [63:0] rem_shift;
     reg [32:0] sub_res; 
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             state <= S_IDLE;
@@ -233,21 +235,25 @@ module log (
                     end
                 end
 
-                // IEEE 754 Conversion
+                // BF16 Conversion
                 S_CONVERT: begin
-                    ieee_out[31] = final_fixed[31]; 
+                    bf16_out[15] = final_fixed[31];  // Sign bit
                     abs_final = final_fixed[31] ? -final_fixed : final_fixed;
                     
                     if (abs_final == 0) begin
-                        ieee_out = 0;
+                        bf16_out = 16'b0;
                     end else begin
                         norm_shift = clz(abs_final);
-                        ieee_exp = 142 - norm_shift;
-                        ieee_mant = (abs_final << norm_shift) >> 8; 
-                        ieee_out[30:23] = ieee_exp;
-                        ieee_out[22:0]  = ieee_mant;
+                        // BF16: exponent bias is 127
+                        // For 16-bit input range, adjust exponent calculation
+                        bf16_exp = 8'd127 + (8'd31 - {2'b0, norm_shift}) - 8'd16;
+                        // BF16 mantissa: 7 bits (truncate from 32-bit)
+                        bf16_mant = (abs_final << norm_shift) >> 24;  // Drop 24 bits to get 7-bit mantissa
+                        
+                        bf16_out[14:7] = bf16_exp;
+                        bf16_out[6:0]  = bf16_mant;
                     end
-                    result <= ieee_out;
+                    result <= bf16_out;
                     state <= S_DONE;
                 end
 
