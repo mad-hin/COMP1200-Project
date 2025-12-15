@@ -17,7 +17,7 @@ module bf16_divider (
     output reg  error,
     output reg  done
 );
-    // 状态机
+    // FSM
     reg [3:0] state;
     localparam IDLE       = 4'd0,
                DECODE     = 4'd1,
@@ -27,7 +27,7 @@ module bf16_divider (
                DIV_NORM   = 4'd5,
                OUTPUT     = 4'd6;
 
-    // 寄存器
+    // Registers
     reg a_sign_reg, b_sign_reg;
     reg [7:0] a_exp_reg, b_exp_reg;
     reg [7:0] a_mant_full_reg, b_mant_full_reg;
@@ -44,12 +44,12 @@ module bf16_divider (
 
     reg [3:0] iter_cnt;
 
-    // 归一化临时寄存器
+    // Normalization temp
     reg [7:0] norm_mant_full;
     reg signed [1:0] norm_exp_adj;
     reg signed [9:0] temp_exp;
 
-    // 特殊值检测
+    // Special checks
     wire a_is_zero = (a[14:7]==0) && (a[6:0]==0);
     wire b_is_zero = (b[14:7]==0) && (b[6:0]==0);
     wire a_is_inf  = (a[14:7]==8'hFF) && (a[6:0]==0);
@@ -62,6 +62,10 @@ module bf16_divider (
     wire special_case_inf_b      = !a_is_inf && b_is_inf;
     wire special_case_zero_a     = a_is_zero && !b_is_zero;
     wire special_case_inf_div_inf= a_is_inf && b_is_inf;
+
+    integer k;
+    reg [4:0] leading_pos;
+    reg [15:0] norm_quo;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -80,17 +84,14 @@ module bf16_divider (
                 end
 
                 DECODE: begin
-                    // 缓存输入
                     a_sign_reg <= a[15];
                     b_sign_reg <= b[15];
                     a_exp_reg  <= a[14:7];
                     b_exp_reg  <= b[14:7];
 
-                    // 尾数含隐含位
                     a_mant_full_reg <= (a[14:7]==0) ? {1'b0, a[6:0]} : {1'b1, a[6:0]};
                     b_mant_full_reg <= (b[14:7]==0) ? {1'b0, b[6:0]} : {1'b1, b[6:0]};
 
-                    // 特殊值处理
                     if (special_case_nan || (a_is_zero && b_is_zero) || special_case_inf_div_inf) begin
                         special_case_result <= 16'hFFC0; // NaN
                         special_case_flag <= 1;
@@ -113,7 +114,6 @@ module bf16_divider (
                         special_case_flag <= 1;
                         state <= DIV_NORM;
                     end else begin
-                        // 正常路径
                         result_sign_reg <= a[15] ^ b[15];
                         result_exp_reg  <= $signed({2'b0, a[14:7]}) - $signed({2'b0, b[14:7]}) + 10'sd127;
                         denominator_reg <= b_mant_full_reg;
@@ -127,14 +127,12 @@ module bf16_divider (
                 end
 
                 DIV_INIT: begin
-                    // 第一次移位
                     div_rem_reg[1] <= {div_rem_reg[0][14:0], numerator_reg[0][7]};
                     numerator_reg[1] <= {numerator_reg[0][6:0], 1'b0};
                     state <= DIV_ITER;
                 end
 
                 DIV_ITER: begin
-                    // 比较与减法
                     if (div_rem_reg[1] >= {8'b0, denominator_reg}) begin
                         div_rem_reg[2] <= div_rem_reg[1] - {8'b0, denominator_reg};
                         div_quo_reg[1] <= {div_quo_reg[0][14:0], 1'b1};
@@ -148,18 +146,15 @@ module bf16_divider (
                 end
 
                 DIV_ITER2: begin
-                    // 下一级移位
                     div_rem_reg[3] <= {div_rem_reg[2][14:0], numerator_reg[2][7]};
                     numerator_reg[3] <= {numerator_reg[2][6:0], 1'b0};
 
                     if (iter_cnt < 4'd15) begin
-                        // 继续循环
                         div_rem_reg[0] <= div_rem_reg[3];
                         div_quo_reg[0] <= div_quo_reg[1];
                         numerator_reg[0] <= numerator_reg[3];
                         state <= DIV_ITER;
                     end else begin
-                        // 最后一次比较
                         if (div_rem_reg[3] >= {8'b0, denominator_reg})
                             div_quo_reg[2] <= {div_quo_reg[1][14:0], 1'b1};
                         else
@@ -173,15 +168,16 @@ module bf16_divider (
                         result <= special_case_result;
                         state <= OUTPUT;
                     end else begin
-                        // 归一化
-                        if (div_quo_reg[2][15]) begin
-                            norm_mant_full = div_quo_reg[2][15:8];
-                            norm_exp_adj   = 0;
-                        end else begin
-                            norm_mant_full = div_quo_reg[2][14:7];
-                            norm_exp_adj   = -1;
+                        // Leading-one detection for full 16-bit quotient
+                        leading_pos = 0;
+                        for (k = 15; k >= 0; k = k - 1) begin
+                            if (div_quo_reg[2][k]) begin
+                                leading_pos = k[4:0];
+                                disable for;
+                            end
                         end
-
+                        norm_quo = div_quo_reg[2] << (15 - leading_pos);
+                        norm_exp_adj = $signed(leading_pos) - 15; // shift left => exponent decreases
                         temp_exp = result_exp_reg + norm_exp_adj;
 
                         if (temp_exp >= 10'sd255) begin
@@ -190,7 +186,7 @@ module bf16_divider (
                         end else if (temp_exp <= 0) begin
                             result <= {result_sign_reg, 8'h00, 7'h00};
                         end else begin
-                            result <= {result_sign_reg, temp_exp[7:0], norm_mant_full[6:0]};
+                            result <= {result_sign_reg, temp_exp[7:0], norm_quo[14:8]};
                         end
                         state <= OUTPUT;
                     end
