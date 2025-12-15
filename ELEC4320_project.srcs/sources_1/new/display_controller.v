@@ -73,40 +73,56 @@ module display_controller(
     // Absolute value for display
     wire [47:0] val_abs = sign_bit ? (~val_q_signed + 1'b1) : val_q_signed;
     
-    // Integer part
-    wire [31:0] abs_int = val_abs[47:16];
+    // ---------------- PIPELINE STAGES ----------------
+    // Break the critical path by registering intermediate results
     
-    // Fractional part: convert 0.XXXX (16 bits) to 8 decimal digits
-    // Multiply by 100,000,000 and shift right 16
-    wire [63:0] frac_scaled_long = val_abs[15:0] * 64'd100000000;
-    wire [26:0] abs_frac_val = frac_scaled_long[42:16]; // 0..99999999
+    // Stage 1: Register the absolute value and sign
+    reg [47:0] val_abs_r;
+    reg sign_bit_r;
+    always @(posedge clk) begin
+        val_abs_r <= val_abs;
+        sign_bit_r <= sign_bit;
+    end
 
-    // --------------- Decimal digits --------------------
+    // Stage 2: Perform Multiplication and Integer Extraction
+    // This isolates the heavy multiplier (16x27 bits) in its own clock cycle
+    reg [31:0] abs_int_r;
+    reg [26:0] abs_frac_val_r;
+    
+    always @(posedge clk) begin
+        abs_int_r <= val_abs_r[47:16];
+        // Multiply by 100,000,000 and shift right 16
+        abs_frac_val_r <= (val_abs_r[15:0] * 64'd100000000) >> 16;
+    end
+
+    // ---------------- Decimal digits --------------------
+    // Use the PIPELINED registers (abs_int_r, abs_frac_val_r) instead of wires
+    
     // Integer digits (up to 5 supported)
-    wire [3:0] d4 = (abs_int / 10000) % 10;
-    wire [3:0] d3 = (abs_int / 1000 ) % 10;
-    wire [3:0] d2 = (abs_int / 100  ) % 10;
-    wire [3:0] d1 = (abs_int / 10   ) % 10;
-    wire [3:0] d0 =  abs_int % 10;
+    wire [3:0] d4 = (abs_int_r / 10000) % 10;
+    wire [3:0] d3 = (abs_int_r / 1000 ) % 10;
+    wire [3:0] d2 = (abs_int_r / 100  ) % 10;
+    wire [3:0] d1 = (abs_int_r / 10   ) % 10;
+    wire [3:0] d0 =  abs_int_r % 10;
 
     // Fraction digits (8 digits)
-    wire [3:0] f7 = (abs_frac_val / 10000000) % 10;
-    wire [3:0] f6 = (abs_frac_val / 1000000) % 10;
-    wire [3:0] f5 = (abs_frac_val / 100000) % 10;
-    wire [3:0] f4 = (abs_frac_val / 10000) % 10;
-    wire [3:0] f3 = (abs_frac_val / 1000) % 10;
-    wire [3:0] f2 = (abs_frac_val / 100) % 10;
-    wire [3:0] f1 = (abs_frac_val / 10) % 10;
-    wire [3:0] f0 =  abs_frac_val % 10;
+    wire [3:0] f7 = (abs_frac_val_r / 10000000) % 10;
+    wire [3:0] f6 = (abs_frac_val_r / 1000000) % 10;
+    wire [3:0] f5 = (abs_frac_val_r / 100000) % 10;
+    wire [3:0] f4 = (abs_frac_val_r / 10000) % 10;
+    wire [3:0] f3 = (abs_frac_val_r / 1000) % 10;
+    wire [3:0] f2 = (abs_frac_val_r / 100) % 10;
+    wire [3:0] f1 = (abs_frac_val_r / 10) % 10;
+    wire [3:0] f0 =  abs_frac_val_r % 10;
 
     // Determine integer length
-    wire [2:0] int_len = (abs_int >= 10000) ? 3'd5 :
-                         (abs_int >= 1000 ) ? 3'd4 :
-                         (abs_int >= 100  ) ? 3'd3 :
-                         (abs_int >= 10   ) ? 3'd2 : 3'd1;
+    wire [2:0] int_len = (abs_int_r >= 10000) ? 3'd5 :
+                         (abs_int_r >= 1000 ) ? 3'd4 :
+                         (abs_int_r >= 100  ) ? 3'd3 :
+                         (abs_int_r >= 10   ) ? 3'd2 : 3'd1;
 
-    wire has_sign = sign_bit;
-    wire has_frac = (abs_frac_val != 0);
+    wire has_sign = sign_bit_r;
+    wire has_frac = (abs_frac_val_r != 0);
     
     // Construct stream of symbols: [Sign] [Int Digits] [Frac Digits]
     // Max symbols: 1 (sign) + 5 (int) + 8 (frac) = 14. We use array of 12 (enough for most cases).
