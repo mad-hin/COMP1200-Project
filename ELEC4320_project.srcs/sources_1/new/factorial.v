@@ -8,17 +8,17 @@
 //     .done(fac_done)
 // );
 
-// 要求：
-// 输入：a是整数，范围[-999,999]，不用检查
-// 输出：a的阶乘，要用BF16的格式表示
-// 当a < 0时，输出error=1，不用计算
-// 当a = 0时，输出result=1(直接用BF16表示)
-// 当a = 1时，输出result=1(直接用BF16表示)
-// 当a > 12时，输出error=1，不用计算
-// 内部计算用无符号32位整数计算，然后才转换成BF16格式最后输出
-// 不可以用LUT和IP
-// 需要运行在300Mhz的情况
-// module里用英文注释
+// Requirements:
+// Input: a is an integer in the range [-999, 999], no need to check the range.
+// Output: a factorial, must be represented in BF16 format.
+// If a < 0, output error=1, no calculation needed.
+// If a = 0, output result=1 (in BF16 format).
+// If a = 1, output result=1 (in BF16 format).
+// If a > 12, output error=1, no calculation needed.
+// Internal calculation uses unsigned 32-bit integer, then convert to BF16 for output.
+// No LUTs or IP cores allowed.
+// Must run at 300MHz.
+// All comments in module should be in English.
 
 `timescale 1ns / 1ps
 `include "define.vh"

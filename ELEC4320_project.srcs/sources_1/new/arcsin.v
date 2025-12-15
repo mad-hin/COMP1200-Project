@@ -8,12 +8,12 @@
 //     .done(asin_done)
 // );
 
-//要求
-//输入是整数斜率，[-999,999]
-//输出是BF16浮点数格式，表示角度
-//实际上在整数情况下，arcsin只有-1，0，1三个有效输入
-//用if-else实现
-//如果是其他情况直接error就可以了
+// Requirements
+// - Input is an integer slope in the range [-999, 999].
+// - Output is a BF16 floating-point value representing the angle in degrees.
+// - For integer inputs, arcsin has only three valid values for slopes: -1, 0, and 1.
+// - Implement using if-else.
+// - For any other cases, set error and return NaN.
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -27,15 +27,15 @@ module arcsin (
     output reg  error,
     output reg  done
 );
-    // States
+    // FSM states
     reg [1:0] state;
     localparam IDLE = 2'd0, DONE_ST = 2'd1;
 
-    // Precomputed BF16 values
-    localparam BF16_NEG_90 = 16'hC2DA;  // -90.0
-    localparam BF16_ZERO   = 16'h0000;  // 0.0
-    localparam BF16_POS_90 = 16'h42DA;  // 90.0
-    localparam BF16_NAN    = 16'hFFC0;  // NaN
+    // Precomputed BF16 constants
+    localparam BF16_NEG_90 = 16'hC2DA;  // -90.0 degrees in BF16
+    localparam BF16_ZERO   = 16'h0000;  // 0.0 degrees in BF16
+    localparam BF16_POS_90 = 16'h42DA;  // 90.0 degrees in BF16
+    localparam BF16_NAN    = 16'hFFC0;  // NaN in BF16
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -49,19 +49,24 @@ module arcsin (
                     done  <= 0;
                     error <= 0;
                     if (start) begin
+                        // Range check for the integer slope
                         if (a > 16'sd999 || a < -16'sd999) begin
                             error  <= 1;
                             result <= BF16_NAN;
                         end else if (a == -16'sd1) begin
+                            // arcsin(-1) = -90°
                             result <= BF16_NEG_90;
                             error  <= 0;
                         end else if (a == 16'sd0) begin
+                            // arcsin(0) = 0°
                             result <= BF16_ZERO;
                             error  <= 0;
                         end else if (a == 16'sd1) begin
+                            // arcsin(1) = 90°
                             result <= BF16_POS_90;
                             error  <= 0;
                         end else begin
+                            // Any other slope is invalid for integer arcsin
                             error  <= 1;
                             result <= BF16_NAN;
                         end
@@ -72,6 +77,7 @@ module arcsin (
 
                 DONE_ST: begin
                     done <= 1;
+                    // Wait for start to deassert before returning to IDLE
                     if (!start) state <= IDLE;
                 end
 

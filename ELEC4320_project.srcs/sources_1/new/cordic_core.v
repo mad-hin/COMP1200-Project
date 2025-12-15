@@ -1,17 +1,17 @@
-// 数值格式为Q2.14
-// verilog-2001
-// 需要运行在300MHz
-// 不可以用IP和直接用LUT
+// Number format: Q2.14
+// Verilog-2001
+// Must run at 300MHz
+// No IP cores or direct LUT implementations allowed
 
 module cordic_core #(
-    parameter MODE = 0,               // 0:SIN, 1:ARCTAN
+    parameter MODE = 0,               // 0: SIN, 1: ARCTAN
     parameter integer ITERATIONS = 11,
-    parameter DEEP_PIPELINE = 1       // 0:单拍/级；1:两拍/级（移位与加减拆分）
+    parameter DEEP_PIPELINE = 1       // 0: single-cycle/stage; 1: two-cycle/stage (split shift and add/sub)
 )(
     input  wire clk,
     input  wire rst,
     input  wire start,
-    // SIN: angle(rad,Q2.14); ARCTAN: x in Q2.14 (y 固定为 1.0)
+    // SIN: angle (rad, Q2.14); ARCTAN: x in Q2.14 (y is fixed to 1.0)
     input  wire signed [15:0] angle_q14,
     output reg  signed [15:0] result_q14,
     output reg  signed [15:0] secondary_q14,
@@ -21,7 +21,7 @@ module cordic_core #(
     localparam signed [15:0] K_Q14      = 16'h26E2; // 0.607252935 * 2^14
     localparam signed [15:0] ONE_FIXED  = 16'h4000; // 1.0 in Q2.14
 
-    // 角度查找函数（Q2.14, rad * 2^14）
+    // Angle lookup function (Q2.14, rad * 2^14)
     function automatic signed [15:0] angle_lut;
         input integer idx;
         begin
@@ -42,21 +42,21 @@ module cordic_core #(
         end
     endfunction
 
-    // 数据流水
+    // Data pipeline
     reg signed [15:0] x_pipe [0:ITERATIONS];
     reg signed [15:0] y_pipe [0:ITERATIONS];
     reg signed [15:0] z_pipe [0:ITERATIONS];
 
-    // 有效信号流水
+    // Valid signal pipeline
     reg valid_pipe [0:ITERATIONS];
 
-    // 仅在 DEEP_PIPELINE=1 时使用的中间寄存
+    // Intermediate registers used only when DEEP_PIPELINE=1
     reg signed [15:0] x_shift   [0:ITERATIONS-1];
     reg signed [15:0] y_shift   [0:ITERATIONS-1];
     reg signed [15:0] lut_reg   [0:ITERATIONS-1];
     reg               valid_shift [0:ITERATIONS-1];
 
-    // Stage 0：加载输入
+    // Stage 0: load input
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             x_pipe[0]     <= 16'sd0;
@@ -89,12 +89,12 @@ module cordic_core #(
         end
     end
 
-    // 迭代流水
+    // Iterative pipeline
     genvar i;
     generate
         for (i = 0; i < ITERATIONS; i = i + 1) begin : cordic_stage
             if (DEEP_PIPELINE) begin : deep
-                // Phase A：移位和 LUT 寄存
+                // Phase A: shift and LUT register
                 always @(posedge clk or posedge rst) begin
                     if (rst) begin
                         x_shift[i]     <= 16'sd0;
@@ -109,7 +109,7 @@ module cordic_core #(
                     end
                 end
 
-                // Phase B：加减与 z 更新
+                // Phase B: add/sub and z update
                 always @(posedge clk or posedge rst) begin
                     if (rst) begin
                         x_pipe[i+1]     <= 16'sd0;
@@ -150,7 +150,7 @@ module cordic_core #(
                     end
                 end
             end else begin : shallow
-                // 原单拍/级实现
+                // Original single-cycle/stage implementation
                 always @(posedge clk or posedge rst) begin
                     if (rst) begin
                         x_pipe[i+1]     <= 16'sd0;
@@ -194,7 +194,7 @@ module cordic_core #(
         end
     endgenerate
 
-    // 输出选择与 done/valid 脉冲
+    // Output selection and done/valid pulse
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             result_q14    <= 16'sd0;
@@ -203,7 +203,7 @@ module cordic_core #(
             done          <= 1'b0;
         end else begin
             cordic_valid <= valid_pipe[ITERATIONS];
-            done         <= valid_pipe[ITERATIONS]; // 单周期脉冲
+            done         <= valid_pipe[ITERATIONS]; // single-cycle pulse
 
             case (MODE)
                 0: begin // SIN: result=sin, secondary=cos

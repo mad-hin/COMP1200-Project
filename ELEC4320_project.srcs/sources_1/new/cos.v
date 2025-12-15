@@ -9,11 +9,11 @@
 //     .done(cos_done),
 // );
 
-//具体要求：
-//输入：整数角度，范围[-999,999]度
-//输出：BF16格式的余弦值
-//使用11次迭代的CORDIC算法，内部采用Q2.14格式表示角度和结果
-//现在都是直接当cos去实现就可以了
+// Requirements:
+// Input: integer angle in degrees, range [-999, 999]
+// Output: cosine in BF16 format
+// Uses 11 iterations of the CORDIC algorithm; internal angle/result use Q2.14
+// Implemented directly as cosine; for sine, subtract 90° externally and reuse cosine
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -21,7 +21,7 @@
 // ============================================================================
 // Module: cos
 // Description: Cosine using 11-iter CORDIC, Q2.14 internal, BF16 output
-//              上层如需计算正弦，请先在外部将角度 a 减去 90° 后再传入.
+//              For sine, subtract 90° from angle a externally before passing in.
 // ============================================================================
 module cos (
     input  wire clk,
@@ -47,8 +47,8 @@ module cos (
     // Angle reduction
     reg signed [15:0] a_reg;                // latched angle
     reg signed [15:0] angle_deg_for_cordic; // in degrees, |angle|<=90
-    reg need_sign_flip;                     // flip sign for quadrants II
-    reg signed [15:0] rdeg;                 // reduced deg for FSM use
+    reg need_sign_flip;                     // flip sign for quadrant II
+    reg signed [15:0] rdeg;                 // reduced degrees for FSM use
 
     // State machine
     reg [2:0] state;
@@ -149,7 +149,7 @@ module cos (
                                 need_sign_flip       <= 1'b0;
                             end else begin
                                 angle_deg_for_cordic <= 16'sd180 - rdeg; // (90,180] -> [0,90]
-                                need_sign_flip       <= 1'b1;            // cos negative in Q2
+                                need_sign_flip       <= 1'b1;            // cosine is negative in Q2
                             end
 
                             start_deg_to_rad <= 1;

@@ -9,19 +9,21 @@
 //     .done(tan_done)
 // );
 
-//具体要求：
-//输入：整数角度，范围[-999,999]度，但不检查输入范围
-//输出：BF16格式的正切值
-
-//先将输入的角度等价到[-pi/2,pi/2]的范围，确保tan值和变换之前一致
-//然后考虑如果输入是90度或-90度时，输出error
-//CORDIC模式选择为0，然后同时获取sin和cos，Q2.14格式
-//然后分别把sin和cos换算成BF16，然后才进行除法得到tan
-//最后tan的结果要保持BF16格式
-
-//不可以用LUT和IP
-//需要运行在300Mhz的情况
-//module里用英文注释
+// Requirements:
+// - Input: integer degrees in range [-999, 999] (no range check required).
+// - Output: tangent value in BF16 format.
+//
+// Algorithm:
+// 1) Reduce the input angle to an equivalent angle in [-π/2, π/2] to preserve the tangent value.
+// 2) If the reduced angle is exactly 90° or -90°, set error.
+// 3) Use CORDIC in mode 0 to compute sin and cos simultaneously (Q2.14 format).
+// 4) Convert sin and cos from Q2.14 to BF16, then compute tan = sin / cos using BF16 divider.
+// 5) The final tan result remains in BF16 format.
+//
+// Constraints:
+// - No LUTs or IP cores allowed.
+// - Design must run at 300 MHz.
+// - Use English comments in the module.
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -40,6 +42,7 @@ module tan (
     wire deg_to_rad_error, bf16_div_error;
     wire signed [15:0] angle_q14;
     wire signed [15:0] sin_q14, cos_q14;
+    wire [15:0] sin_bf14, cos_bf14;
     wire [15:0] sin_bf16, cos_bf16;
     wire [15:0] tan_bf16;
 
@@ -96,7 +99,6 @@ module tan (
     // ============================================================================
     // Submodules
     // ============================================================================
-
     // Degree to rad (Q2.14)
     deg_to_rad u_deg_to_rad (
         .clk(clk),
@@ -257,8 +259,6 @@ module tan (
 
                 // Start BF16 conversions one cycle after cordic outputs are latched
                 CONV_START: begin
-                    // sin_bf16_ready <= 0;
-                    // cos_bf16_ready <= 0;
                     start_sin_bf16 <= 1;
                     start_cos_bf16 <= 1;
                     state <= CONV_SIN;

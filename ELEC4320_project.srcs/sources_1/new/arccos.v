@@ -8,12 +8,12 @@
 //     .done(acos_done)
 // );
 
-//要求
-//输入是整数斜率，[-999,999]
-//输出是BF16浮点数格式，表示角度
-//实际上在整数情况下，arccos只有-1，0，1三个有效输入
-//用if-else实现
-//如果是其他情况直接error就可以了
+// Requirements
+// - Input is an integer slope in the range [-999, 999].
+// - Output is a BF16 floating-point value representing an angle in degrees.
+// - For integer inputs, arccos has only three valid values for slopes: -1, 0, and 1.
+// - Implement with if-else.
+// - For any other cases, set error and return NaN.
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -27,14 +27,14 @@ module arccos (
     output reg  error,
     output reg  done
 );
-    // States
+    // FSM states
     reg [1:0] state;
     localparam IDLE = 2'd0, DONE_ST = 2'd1;
 
-    // Precomputed BF16 values
-    localparam BF16_0    = 16'h0000;  // 0.0 in BF16
-    localparam BF16_90   = 16'h42B4;  // 90.0 in BF16
-    localparam BF16_180  = 16'h4334;  // 180.0 in BF16
+    // Precomputed BF16 constants
+    localparam BF16_0    = 16'h0000;  // 0.0 degrees in BF16
+    localparam BF16_90   = 16'h42B4;  // 90.0 degrees in BF16
+    localparam BF16_180  = 16'h4334;  // 180.0 degrees in BF16
     localparam BF16_NAN  = 16'hFFC0;  // NaN in BF16
 
     always @(posedge clk or posedge rst) begin
@@ -49,19 +49,24 @@ module arccos (
                     done  <= 0;
                     error <= 0;
                     if (start) begin
+                        // Range check for the integer slope
                         if (a > 16'sd999 || a < -16'sd999) begin
                             error  <= 1;
                             result <= BF16_NAN;
                         end else if (a == -16'sd1) begin
-                            result <= BF16_180;  // arccos(-1)=180°
+                            // arccos(-1) = 180°
+                            result <= BF16_180;
                             error  <= 0;
                         end else if (a == 16'sd0) begin
-                            result <= BF16_90;   // arccos(0)=90°
+                            // arccos(0) = 90°
+                            result <= BF16_90;
                             error  <= 0;
                         end else if (a == 16'sd1) begin
-                            result <= BF16_0;    // arccos(1)=0°
+                            // arccos(1) = 0°
+                            result <= BF16_0;
                             error  <= 0;
                         end else begin
+                            // Any other slope is invalid for integer arccos
                             error  <= 1;
                             result <= BF16_NAN;
                         end
@@ -72,6 +77,7 @@ module arccos (
 
                 DONE_ST: begin
                     done <= 1;
+                    // Wait for start to deassert before returning to IDLE
                     if (!start) state <= IDLE;
                 end
 

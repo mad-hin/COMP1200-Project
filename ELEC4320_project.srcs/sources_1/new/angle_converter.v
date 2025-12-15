@@ -1,12 +1,13 @@
-//要求：
-//需要运行在300Mhz的情况
-//可以调用dsp，但是不可以用ip和直接用LUT
+// Requirements:
+// - Must operate at 300 MHz
+// - DSP blocks may be used, but no vendor IP cores and no direct LUT-based implementations
 
 `timescale 1ns / 1ps
 `include "define.vh"
 
 // ============================================================================
 // Module: deg_to_rad - int deg -> Q2.14 rad
+// Converts signed integer degrees to radians in Q2.14 fixed-point format.
 // ============================================================================
 module deg_to_rad (
     input  wire clk,
@@ -18,7 +19,8 @@ module deg_to_rad (
     output reg  error,
     output reg  done
 );
-    localparam integer DEG_TO_RAD_Q14 = 286; // (π/180)*2^14
+    // (π/180) * 2^14 ≈ 286.74 -> use 286 as integer scale for Q2.14
+    localparam integer DEG_TO_RAD_Q14 = 286;
 
     reg [2:0] state, next_state;
     localparam IDLE=3'd0, MUL1=3'd1, MUL2=3'd2, MUL3=3'd3, OUTPUT_ST=3'd4, DONE_ST=3'd5;
@@ -28,13 +30,13 @@ module deg_to_rad (
     reg signed [15:0] deg_reg;
     reg signed [15:0] deg_reg2;
 
-    // 状态寄存器
+    // State register
     always @(posedge clk or posedge rst) begin
         if (rst) state <= IDLE;
         else     state <= next_state;
     end
 
-    // 下一状态逻辑
+    // Next-state logic
     always @(*) begin
         next_state = state;
         case (state)
@@ -48,7 +50,7 @@ module deg_to_rad (
         endcase
     end
 
-    // 数据路径
+    // Datapath
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             angle_q14    <= 0;
@@ -66,9 +68,9 @@ module deg_to_rad (
             case (state)
                 IDLE: begin
                     if (start) begin
-                        deg_reg <= angle_deg;
-                        error   <= 0; // 清零错误标志
-                        deg_reg2 <= angle_deg; // 直接赋值，准备乘法
+                        deg_reg  <= angle_deg;
+                        error    <= 0;         // Clear error flag
+                        deg_reg2 <= angle_deg; // Prepare for multiplication
                     end
                 end
 
@@ -81,7 +83,7 @@ module deg_to_rad (
                 end
 
                 MUL3: begin
-                    // 仅延迟，确保乘法结果稳定
+                    // Pipeline delay to ensure multiplication result settles
                 end
 
                 OUTPUT_ST: begin
@@ -99,6 +101,7 @@ endmodule
 
 // ============================================================================
 // Module: rad_to_deg - Q2.14 rad -> Q2.14 deg
+// Converts radians in Q2.14 fixed-point format to degrees in Q2.14 format.
 // ============================================================================
 module rad_to_deg (
     input wire clk,
@@ -108,23 +111,25 @@ module rad_to_deg (
     output reg signed [15:0] deg_q14,  // Output degrees in Q2.14
     output reg done
 );
-    // 180/π ≈ 57.2958 in Q2.14; 用 10bit 小数缩放避免溢出
-    localparam signed [31:0] RAD_TO_DEG_SCALE = 32'd58668;  // (180/π) * 1024
+    // 180/π ≈ 57.2958
+    // Use a 10-bit fractional scaling to avoid overflow: scale = (180/π) * 1024 ≈ 58668
+    localparam signed [31:0] RAD_TO_DEG_SCALE = 32'd58668;
 
     reg [2:0] state, next_state;
     localparam IDLE=3'd0, MUL1=3'd1, MUL2=3'd2, MUL3=3'd3, SHIFT=3'd4, OUTPUT_ST=3'd5;
+
     reg signed [31:0] temp;
     reg signed [31:0] temp_reg;
     reg signed [15:0] rad_reg;
     reg signed [15:0] rad_reg2;
 
-    // 状态寄存器
+    // State register
     always @(posedge clk or posedge rst) begin
         if (rst) state <= IDLE;
         else     state <= next_state;
     end
 
-    // 下一状态逻辑
+    // Next-state logic
     always @(*) begin
         next_state = state;
         case (state)
@@ -138,7 +143,7 @@ module rad_to_deg (
         endcase
     end
 
-    // 数据路径
+    // Datapath
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             deg_q14  <= 0;
@@ -164,11 +169,11 @@ module rad_to_deg (
                 end
 
                 MUL3: begin
-                    // 仅延迟，确保乘法结果稳定
+                    // Pipeline delay to ensure multiplication result settles
                 end
 
                 SHIFT: begin
-                    deg_q14 <= temp_reg[25:10];  // >>10 保留16位
+                    deg_q14 <= temp_reg[25:10];  // Right shift by 10 to keep 16-bit result
                 end
 
                 OUTPUT_ST: begin
@@ -181,13 +186,14 @@ endmodule
 
 // ============================================================================
 // Legacy module: angle_converter (for backward compatibility)
+// Wraps deg_to_rad with the legacy interface.
 // ============================================================================
 module angle_converter (
     input wire clk,
     input wire rst,
     input wire start,
     input wire signed [`INPUTOUTBIT-1:0] angle_deg,  // 16-bit integer degrees [-999,999]
-    output reg signed [15:0] angle_q14,  // Q2.14 format, [-π/2, π/2]
+    output reg signed [15:0] angle_q14,              // Q2.14 format, [-π/2, π/2]
     output reg angle_valid,
     output reg error,
     output reg done
