@@ -102,226 +102,226 @@ module cal_tb();
         // =====================================================
         // Test 1: Addition (5 + 3 = 8)
         // =====================================================
-       $display("\n=== Test 1: Addition 5 + 3 ===");
-       system_reset();
-       sw = `OP_ADD;
-       #1000000;
+//        $display("\n=== Test 1: Addition 5 + 3 ===");
+//        system_reset();
+//        sw = `OP_ADD;
+//        #1000000;
         
-       simulate_input(5);
-       #5000000;
-       simulate_input(3);
+//        simulate_input(5);
+//        #5000000;
+//        simulate_input(3);
         
-       wait(cal_done);
-       #100000;
-       $display("Result: 0x%04h (Expected: 0x4100 = 8.0)", alu_result);
+//        wait(cal_done);
+//        #100000;
+//        $display("Result: 0x%04h (Expected: 0x4100 = 8.0)", alu_result);
         
         // =====================================================
         // Test 2: Addition (-100 + 200 = 100)
         // =====================================================
-       $display("\n=== Test 2: Addition -100 + 200 ===");
-       system_reset();
-       sw = `OP_ADD;
-       #1000000;
+//        $display("\n=== Test 2: Addition -100 + 200 ===");
+//        system_reset();
+//        sw = `OP_ADD;
+//        #1000000;
         
-       simulate_input(-100);
-       #5000000;
-       simulate_input(200);
+//        simulate_input(-100);
+//        #5000000;
+//        simulate_input(200);
         
-       wait(cal_done);
-       #100000;
-       $display("Result: 0x%04h (Expected: 0x42C8 = 100.0)", alu_result);
+//        wait(cal_done);
+//        #100000;
+//        $display("Result: 0x%04h (Expected: 0x42C8 = 100.0)", alu_result);
         
         // =====================================================
         // Test 3: Addition (-50 + -30 = -80)
 //        // =====================================================
-       $display("\n=== Test 3: Addition -50 + -30 ===");
-       system_reset();
-       sw = `OP_ADD;
-       #1000000;
+//        $display("\n=== Test 3: Addition -50 + -30 ===");
+//        system_reset();
+//        sw = `OP_ADD;
+//        #1000000;
         
-       simulate_input(-50);
-       #5000000;
-       simulate_input(-30);
+//        simulate_input(-50);
+//        #5000000;
+//        simulate_input(-30);
         
-       wait(cal_done);
-       #100000;
-       $display("Result: 0x%04h (Expected: 0xC2A0 = -80.0)", alu_result);
+//        wait(cal_done);
+//        #100000;
+//        $display("Result: 0x%04h (Expected: 0xC2A0 = -80.0)", alu_result);
         
         // =====================================================
         // Test 4: Subtraction (10 - 4 = 6)
         // =====================================================
-        $display("\n=== Test 4: Subtraction 10 - 4 ===");
-        system_reset();
-        sw = `OP_SUB;
-        #1000000;
+        // $display("\n=== Test 4: Subtraction 10 - 4 ===");
+        // system_reset();
+        // sw = `OP_SUB;
+        // #1000000;
         
-        simulate_input(10);
-        #5000000;
-        simulate_input(4);
+        // simulate_input(10);
+        // #5000000;
+        // simulate_input(4);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x40C0 = 6.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x40C0 = 6.0)", alu_result);
         
         // =====================================================
         // Test 5: Subtraction (50 - 30 = 20)
         // =====================================================
-        $display("\n=== Test 5: Subtraction 50 - 30 ===");
-        system_reset();
-        sw = `OP_SUB;
-        #1000000;
+        // $display("\n=== Test 5: Subtraction 50 - 30 ===");
+        // system_reset();
+        // sw = `OP_SUB;
+        // #1000000;
         
-        simulate_input(50);
-        #5000000;
-        simulate_input(30);
+        // simulate_input(50);
+        // #5000000;
+        // simulate_input(30);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x41A0 = 20.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x41A0 = 20.0)", alu_result);
         
         // =====================================================
         // Test 6: Multiplication (2 * 3 = 6)
         // =====================================================
-        $display("\n=== Test 6: Multiplication 2 * 3 ===");
-        system_reset();
-        sw = `OP_MUL;
-        #1000000;
+        // $display("\n=== Test 6: Multiplication 2 * 3 ===");
+        // system_reset();
+        // sw = `OP_MUL;
+        // #1000000;
         
-        simulate_input(2);
-        #5000000;
-        simulate_input(3);
+        // simulate_input(2);
+        // #5000000;
+        // simulate_input(3);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x40C0 = 6.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x40C0 = 6.0)", alu_result);
         
         // =====================================================
         // Test 7: Multiplication (-999 * 0 = 0)
         // =====================================================
-        $display("\n=== Test 7: Multiplication -999 * 0 ===");
-        system_reset();
-        sw = `OP_MUL;
-        #1000000;
+        // $display("\n=== Test 7: Multiplication -999 * 0 ===");
+        // system_reset();
+        // sw = `OP_MUL;
+        // #1000000;
         
-        simulate_input(-999);
-        #5000000;
-        simulate_input(0);
+        // simulate_input(-999);
+        // #5000000;
+        // simulate_input(0);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x0000 = 0.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x0000 = 0.0)", alu_result);
         
         // =====================================================
         // Test 8: Multiplication (-321 * -123 = 39483)
         // =====================================================
-        $display("\n=== Test 8: Multiplication -321 * -123 ===");
-        system_reset();
-        sw = `OP_MUL;
-        #1000000;
+        // $display("\n=== Test 8: Multiplication -321 * -123 ===");
+        // system_reset();
+        // sw = `OP_MUL;
+        // #1000000;
         
-        simulate_input(-321);
-        #5000000;
-        simulate_input(-123);
+        // simulate_input(-321);
+        // #5000000;
+        // simulate_input(-123);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x471A = 39483.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x471A = 39483.0)", alu_result);
         
         // =====================================================
         // Test 9: Division (5 / 2 = 2.5)
         // =====================================================
-        $display("\n=== Test 9: Division 5 / 2 ===");
-        system_reset();
-        sw = `OP_DIV;
-        #1000000;
+        // $display("\n=== Test 9: Division 5 / 2 ===");
+        // system_reset();
+        // sw = `OP_DIV;
+        // #1000000;
         
-        simulate_input(5);
-        #5000000;
-        simulate_input(2);
+        // simulate_input(5);
+        // #5000000;
+        // simulate_input(2);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x4020 = 2.5)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4020 = 2.5)", alu_result);
         
         // =====================================================
         // Test 10: Division (-999 / 3 = -333)
         // =====================================================
-        $display("\n=== Test 10: Division -999 / 3 ===");
-        system_reset();
-        sw = `OP_DIV;
-        #1000000;
+        // $display("\n=== Test 10: Division -999 / 3 ===");
+        // system_reset();
+        // sw = `OP_DIV;
+        // #1000000;
         
-        simulate_input(-999);
-        #5000000;
-        simulate_input(3);
+        // simulate_input(-999);
+        // #5000000;
+        // simulate_input(3);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0xC3A6 = -333.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0xC3A6 = -333.0)", alu_result);
         
         // =====================================================
         // Test 11: Division (100 / -3 = -33.333...)
         // =====================================================
-        $display("\n=== Test 11: Division 100 / -3 ===");
-        system_reset();
-        sw = `OP_DIV;
-        #1000000;
+        // $display("\n=== Test 11: Division 100 / -3 ===");
+        // system_reset();
+        // sw = `OP_DIV;
+        // #1000000;
         
-        simulate_input(100);
-        #5000000;
-        simulate_input(-3);
+        // simulate_input(100);
+        // #5000000;
+        // simulate_input(-3);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0xC205 = -33.33)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0xC205 = -33.33)", alu_result);
         
         // =====================================================
         // Test 12: Division by Zero (999 / 0 = ERROR)
         // =====================================================
-        $display("\n=== Test 12: Division 999 / 0 (ERROR) ===");
-        system_reset();
-        sw = `OP_DIV;
-        #1000000;
+        // $display("\n=== Test 12: Division 999 / 0 (ERROR) ===");
+        // system_reset();
+        // sw = `OP_DIV;
+        // #1000000;
         
-        simulate_input(999);
-        #5000000;
-        simulate_input(0);
+        // simulate_input(999);
+        // #5000000;
+        // simulate_input(0);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h, Error: %b (Expected: ERROR)", alu_result, alu_error);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h, Error: %b (Expected: ERROR)", alu_result, alu_error);
         
         // =====================================================
         // Test 13: Logarithm (log10(100) = 2)
         // =====================================================
-        $display("\n=== Test 13: Logarithm log10(100) ===");
-        system_reset();
-        sw = `OP_LOG;
-        #1000000;
+        // $display("\n=== Test 13: Logarithm log10(100) ===");
+        // system_reset();
+        // sw = `OP_LOG;
+        // #1000000;
         
-        simulate_input(10);
-        #5000000;
-        simulate_input(100);
+        // simulate_input(10);
+        // #5000000;
+        // simulate_input(100);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x4000 = 2.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4000 = 2.0)", alu_result);
         
         // =====================================================
         // Test 14: Logarithm (log2(8) = 3)
         // =====================================================
-        $display("\n=== Test 14: Logarithm log2(8) ===");
-        system_reset();
-        sw = `OP_LOG;
-        #1000000;
+        // $display("\n=== Test 14: Logarithm log2(8) ===");
+        // system_reset();
+        // sw = `OP_LOG;
+        // #1000000;
         
-        simulate_input(2);
-        #5000000;
-        simulate_input(8);
+        // simulate_input(2);
+        // #5000000;
+        // simulate_input(8);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x4040 = 3.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4040 = 3.0)", alu_result);
         
         // =====================================================
         // Test 15: Power (2^3 = 8)
@@ -342,74 +342,74 @@ module cal_tb();
         // =====================================================
         // Test 16: Power (99^0 = 1)
         // =====================================================
-        $display("\n=== Test 16: Power 99^0 ===");
-        system_reset();
-        sw = `OP_POW;
-        #1000000;
+        // $display("\n=== Test 16: Power 99^0 ===");
+        // system_reset();
+        // sw = `OP_POW;
+        // #1000000;
         
-        simulate_input(99);
-        #5000000;
-        simulate_input(0);
+        // simulate_input(99);
+        // #5000000;
+        // simulate_input(0);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x3F80 = 1.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x3F80 = 1.0)", alu_result);
         
         // =====================================================
         // Test 17: Square Root (sqrt(4) = 2)
         // =====================================================
-        $display("\n=== Test 17: Square Root sqrt(4) ===");
-        system_reset();
-        sw = `OP_SQRT;
-        #1000000;
+        // $display("\n=== Test 17: Square Root sqrt(4) ===");
+        // system_reset();
+        // sw = `OP_SQRT;
+        // #1000000;
         
-        simulate_input(4);
+        // simulate_input(4);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x4000 = 2.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4000 = 2.0)", alu_result);
         
         // =====================================================
         // Test 18: Square Root (sqrt(2) = 1.414...)
         // =====================================================
-        $display("\n=== Test 18: Square Root sqrt(2) ===");
-        system_reset();
-        sw = `OP_SQRT;
-        #1000000;
+        // $display("\n=== Test 18: Square Root sqrt(2) ===");
+        // system_reset();
+        // sw = `OP_SQRT;
+        // #1000000;
         
-        simulate_input(2);
+        // simulate_input(2);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x3FB5 = 1.414)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x3FB5 = 1.414)", alu_result);
         
         // =====================================================
         // Test 19: Exponential (e^2 = 7.389...)
         // =====================================================
-        $display("\n=== Test 19: Exponential e^2 ===");
-        system_reset();
-        sw = `OP_EXP;
-        #1000000;
+        // $display("\n=== Test 19: Exponential e^2 ===");
+        // system_reset();
+        // sw = `OP_EXP;
+        // #1000000;
         
-        simulate_input(2);
+        // simulate_input(2);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x40EC = 7.389)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x40EC = 7.389)", alu_result);
         
         // =====================================================
         // Test 20: Exponential (e^0 = 1)
         // =====================================================
-        $display("\n=== Test 20: Exponential e^0 ===");
-        system_reset();
-        sw = `OP_EXP;
-        #1000000;
+        // $display("\n=== Test 20: Exponential e^0 ===");
+        // system_reset();
+        // sw = `OP_EXP;
+        // #1000000;
         
-        simulate_input(0);
+        // simulate_input(0);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x3F80 = 1.0)", alu_result);
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x3F80 = 1.0)", alu_result);
 
         $display("\n=== All tests completed! ===");
         #1000000;

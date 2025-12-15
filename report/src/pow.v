@@ -352,7 +352,7 @@ module pow(
 
                         if (calc_exp >= 255) begin
                             error <= 1;
-                            result <= {result_is_neg, 8'hFF, 7'h0};  // BF16 Inf
+                            result <= {result_is_neg, 8'hFF, 7'h0}; 
                         end else if (calc_exp <= 0) begin
                             result <= 0;  // Underflow to zero
                         end else begin

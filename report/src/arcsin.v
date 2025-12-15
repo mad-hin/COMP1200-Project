@@ -8,6 +8,12 @@
 //     .done(asin_done)
 // );
 
+// Requirements
+// - Input is an integer slope in the range [-999, 999].
+// - Output is a BF16 floating-point value representing the angle in degrees.
+// - For integer inputs, arcsin has only three valid values for slopes: -1, 0, and 1.
+// - Implement using if-else.
+// - For any other cases, set error and return NaN.
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -21,15 +27,15 @@ module arcsin (
     output reg  error,
     output reg  done
 );
-    // States
+    // FSM states
     reg [1:0] state;
     localparam IDLE = 2'd0, DONE_ST = 2'd1;
 
-    // Precomputed BF16 values
-    localparam BF16_NEG_90 = 16'hC2DA;  // -90.0
-    localparam BF16_ZERO   = 16'h0000;  // 0.0
-    localparam BF16_POS_90 = 16'h42DA;  // 90.0
-    localparam BF16_NAN    = 16'hFFC0;  // NaN
+    // Precomputed BF16 constants
+    localparam BF16_NEG_90 = 16'hC2DA;  // -90.0 degrees in BF16
+    localparam BF16_ZERO   = 16'h0000;  // 0.0 degrees in BF16
+    localparam BF16_POS_90 = 16'h42DA;  // 90.0 degrees in BF16
+    localparam BF16_NAN    = 16'hFFC0;  // NaN in BF16
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -43,6 +49,7 @@ module arcsin (
                     done  <= 0;
                     error <= 0;
                     if (start) begin
+                        // Range check for the integer slope
                         if (a > 16'sd999 || a < -16'sd999) begin
                             error  <= 1;
                             result <= BF16_NAN;
@@ -56,6 +63,7 @@ module arcsin (
                             result <= BF16_POS_90;
                             error  <= 0;
                         end else begin
+                            // Any other slope is invalid for integer arcsin
                             error  <= 1;
                             result <= BF16_NAN;
                         end
@@ -66,6 +74,7 @@ module arcsin (
 
                 DONE_ST: begin
                     done <= 1;
+                    // Wait for start to deassert before returning to IDLE
                     if (!start) state <= IDLE;
                 end
 

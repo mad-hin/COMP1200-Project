@@ -44,15 +44,15 @@ The \texttt{input\_output\_controller} module consists of the following submodul
     \item \textbf{Output Controller:} Drives the 7-segment display to show the current input value. The display updates smoothly using the fast clock.
 \end{itemize}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{input\_output\_controller} module is illustrated in Figure~\ref{fig:io_controller_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{input\_output\_controller} module is illustrated in Figure~\ref{fig:io_controller_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/io_controller_flowchart.pdf}
-\caption{Flowchart of the Input/Output Controller Module}
-\label{fig:io_controller_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/io_controller_flowchart.pdf}
+% \caption{Flowchart of the Input/Output Controller Module}
+% \label{fig:io_controller_flowchart}
+% \end{figure}
 
 \noindent The module operates as follows:
 \begin{enumerate}
@@ -109,15 +109,15 @@ The \texttt{display\_controller} module operates in the following stages:
     \item \textbf{Multiplexing:} The module uses a multiplexing scheme to drive the 7-segment display, refreshing each digit at a high frequency to ensure smooth display.
 \end{itemize}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{display\_controller} module is illustrated in Figure~\ref{fig:display_controller_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{display\_controller} module is illustrated in Figure~\ref{fig:display_controller_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/display_controller_flowchart.pdf}
-\caption{Flowchart of the Display Controller Module}
-\label{fig:display_controller_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/display_controller_flowchart.pdf}
+% \caption{Flowchart of the Display Controller Module}
+% \label{fig:display_controller_flowchart}
+% \end{figure}
 
 \noindent The module ensures accurate and user-friendly display of results, with robust handling of errors and support for long numbers through scrolling. The use of pipelined stages and multiplexing ensures efficient operation and smooth display updates.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -160,15 +160,15 @@ The \texttt{add} module operates in the following stages:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{add} module is illustrated in Figure~\ref{fig:add_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{add} module is illustrated in Figure~\ref{fig:add_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/add_flowchart.pdf}
-\caption{Flowchart of the Addition Module}
-\label{fig:add_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/add_flowchart.pdf}
+% \caption{Flowchart of the Addition Module}
+% \label{fig:add_flowchart}
+% \end{figure}
 
 \noindent The module ensures efficient and accurate addition of signed integers, with robust handling of overflow conditions and conversion to BF16 format.
 
@@ -209,15 +209,15 @@ The \texttt{sub} module operates in the following stages:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{sub} module is illustrated in Figure~\ref{fig:sub_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{sub} module is illustrated in Figure~\ref{fig:sub_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/sub_flowchart.pdf}
-\caption{Flowchart of the Subtraction Module}
-\label{fig:sub_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/sub_flowchart.pdf}
+% \caption{Flowchart of the Subtraction Module}
+% \label{fig:sub_flowchart}
+% \end{figure}
 
 \noindent The module ensures efficient and accurate subtraction of signed integers, with robust handling of underflow conditions and conversion to BF16 format.
 
@@ -369,15 +369,15 @@ The \texttt{cos} module operates in the following stages:
     \item \textbf{Output Conversion:} The Q2.14 cosine result is converted to BF16 format. The conversion includes normalization, mantissa extraction, and exponent calculation.
 \end{enumerate}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{cos} module is illustrated in Figure~\ref{fig:cos_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{cos} module is illustrated in Figure~\ref{fig:cos_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/cos_flowchart.pdf}
-\caption{Flowchart of the Cosine Module}
-\label{fig:cos_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/cos_flowchart.pdf}
+% \caption{Flowchart of the Cosine Module}
+% \label{fig:cos_flowchart}
+% \end{figure}
 
 \noindent The module ensures efficient and accurate computation of cosine values, with robust handling of input errors and conversion to BF16 format.
 
@@ -421,15 +421,15 @@ The \texttt{arccos} module operates as follows:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{arccos} module is illustrated in Figure~\ref{fig:arccos_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{arccos} module is illustrated in Figure~\ref{fig:arccos_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/arccos_flowchart.pdf}
-\caption{Flowchart of the Arccosine Module}
-\label{fig:arccos_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/arccos_flowchart.pdf}
+% \caption{Flowchart of the Arccosine Module}
+% \label{fig:arccos_flowchart}
+% \end{figure}
 
 \noindent The module ensures efficient and accurate computation of arccosine values for the limited input cases, with robust handling of invalid inputs.
 
@@ -471,15 +471,15 @@ The \texttt{sin} module operates as follows:
     \item \textbf{Output:} The result from the \texttt{cos} module is directly used as the sine value. The \texttt{done} signal is asserted to indicate the computation is complete.
 \end{enumerate}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{sin} module is illustrated in Figure~\ref{fig:sin_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{sin} module is illustrated in Figure~\ref{fig:sin_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/sin_flowchart.pdf}
-\caption{Flowchart of the Sine Module}
-\label{fig:sin_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/sin_flowchart.pdf}
+% \caption{Flowchart of the Sine Module}
+% \label{fig:sin_flowchart}
+% \end{figure}
 
 \noindent By reusing the \texttt{cos} module, the \texttt{sin} module avoids duplicating the CORDIC core, saving hardware resources while maintaining computational efficiency.
 
@@ -522,15 +522,15 @@ The \texttt{tan} module operates as follows:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{tan} module is illustrated in Figure~\ref{fig:tan_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{tan} module is illustrated in Figure~\ref{fig:tan_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/tan_flowchart.pdf}
-\caption{Flowchart of the Tangent Module}
-\label{fig:tan_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/tan_flowchart.pdf}
+% \caption{Flowchart of the Tangent Module}
+% \label{fig:tan_flowchart}
+% \end{figure}
 
 \noindent The module ensures efficient and accurate computation of tangent values, with robust handling of special cases and conversion to BF16 format.
 
@@ -583,15 +583,15 @@ The \texttt{arctan} module operates as follows:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{arctan} module is illustrated in Figure~\ref{fig:arctan_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{arctan} module is illustrated in Figure~\ref{fig:arctan_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/arctan_flowchart.pdf}
-\caption{Flowchart of the Arctangent Module}
-\label{fig:arctan_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/arctan_flowchart.pdf}
+% \caption{Flowchart of the Arctangent Module}
+% \label{fig:arctan_flowchart}
+% \end{figure}
 
 \noindent The module ensures efficient and accurate computation of arctangent values, with robust handling of large inputs and conversion to BF16 format.
 
@@ -766,14 +766,14 @@ The \texttt{fac} module operates as follows:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-\subsubsection*{Flowchart}
-The flow of the \texttt{fac} module is illustrated in Figure~\ref{fig:fac_flowchart}.
+% \subsubsection*{Flowchart}
+% The flow of the \texttt{fac} module is illustrated in Figure~\ref{fig:fac_flowchart}.
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=0.8\textwidth]{images/fac_flowchart.pdf}
-\caption{Flowchart of the Factorial Module}
-\label{fig:fac_flowchart}
-\end{figure}
+% \begin{figure}[h!]
+% \centering
+% \includegraphics[width=0.8\textwidth]{images/fac_flowchart.pdf}
+% \caption{Flowchart of the Factorial Module}
+% \label{fig:fac_flowchart}
+% \end{figure}
 
 \noindent The module ensures efficient computation of factorial values, with robust handling of invalid inputs and conversion to BF16 format.

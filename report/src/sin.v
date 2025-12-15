@@ -17,7 +17,7 @@ module sin (
     // Internal signals
     wire deg_to_rad_done, cordic_done, q14_to_float_done;
     wire deg_to_rad_error;
-    wire signed [15:0] angle_q14;   // |angle|<=90 after reduction
+    wire signed [15:0] angle_q14;   // |angle|<=90° after reduction
     wire signed [15:0] sin_q14;
     wire signed [15:0] cos_q14;
     wire [31:0] float_out;

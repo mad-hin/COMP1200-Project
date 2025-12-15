@@ -9,7 +9,10 @@
 //     .done(cos_done),
 // );
 
-
+// Requirements:
+// Input: integer angle in degrees, range [-999, 999]
+// Output: cosine in BF16 format
+// Uses 11 iterations of the CORDIC algorithm; internal angle/result use Q2.14
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -30,7 +33,7 @@ module cos (
     // Internal signals
     wire deg_to_rad_done, cordic_done, q14_to_bf16_done;
     wire deg_to_rad_error;
-    wire signed [15:0] angle_q14;
+    wire signed [15:0] angle_q14;   // |angle|<=90 after reduction
     wire signed [15:0] cos_q14;     // Cosine value in Q2.14 format
     wire [15:0] bf16_out;           // BF16 output
 
@@ -42,8 +45,8 @@ module cos (
     // Angle reduction
     reg signed [15:0] a_reg;                // latched angle
     reg signed [15:0] angle_deg_for_cordic; // in degrees, |angle|<=90
-    reg need_sign_flip;                     // flip sign for quadrants II
-    reg signed [15:0] rdeg;                 // reduced deg for FSM use
+    reg need_sign_flip;                     // flip sign for quadrant II
+    reg signed [15:0] rdeg;                 // reduced degrees for FSM use
 
     // State machine
     reg [2:0] state;
@@ -144,7 +147,7 @@ module cos (
                                 need_sign_flip       <= 1'b0;
                             end else begin
                                 angle_deg_for_cordic <= 16'sd180 - rdeg; // (90,180] -> [0,90]
-                                need_sign_flip       <= 1'b1;            // cos negative in Q2
+                                need_sign_flip       <= 1'b1;            // cosine is negative in Q2
                             end
 
                             start_deg_to_rad <= 1;

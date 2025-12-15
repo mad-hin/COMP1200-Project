@@ -8,6 +8,19 @@
 //         .done(atan_done)
 //     );
 
+// Requirements:
+// - When a = 0, output 0 degrees.
+// - arctan(1) = 45 degrees, arctan(-1) = -45 degrees.
+// - For |a| > 1:
+// - CORDIC requires y <= x. If x = 1 and y = 1/a, CORDIC computes arctan(y/x) = arctan(1/a).
+// - Input: integer slope in range [-999, 999] (range is not strictly checked here).
+// - Output: angle in BF16 format.
+// - Flow:
+//     1) Check a equals -1, 0, or 1 and return directly via if-else.
+//     2) Otherwise, apply the above identity based on the sign.
+// - Use an 11-iteration CORDIC algorithm, internal angle/result in Q2.14 format.
+// - CORDIC mode = 1 (arctan), which can compute arctan(1/a) directly.
+// - Must run at 300 MHz. DSPs may be used, but no IP cores and no direct LUT-only implementations.
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -24,10 +37,10 @@ module arctan (
     // ============================================================================
     // Constants
     // ============================================================================
-    localparam BF16_45      = 16'h42B4;  // 45.0 in BF16
-    localparam BF16_NEG_45  = 16'hC2B4;  // -45.0 in BF16
+    localparam BF16_45      = 16'h4234;  // 45.0 in BF16
+    localparam BF16_NEG_45  = 16'hC234;  // -45.0 in BF16
     localparam BF16_ZERO    = 16'h0000;  // 0.0 in BF16
-    localparam BF16_NAN     = 16'hFFC0;  // NaN in BF16
+    localparam BF16_NAN     = 16'h7FC0;  // qNaN in BF16 (sign doesn't matter)
 
     localparam signed [15:0] PI_OVER_2_Q14 = 16'h3244;
 
@@ -50,7 +63,7 @@ module arctan (
     reg signed [15:0] angle_q14;         // Final angle in Q2.14 (rad)
     reg signed [15:0] deg_q14;           // Angle in Q2.14 (deg)
     reg use_complement;                  // Always 1 for |a|>1, kept for clarity
-    reg result_sign;                     // 1 if final angle negative
+    reg result_sign;                     // 1 if final angle is negative
     reg start_bf16;                      // Pulse to start BF16 conversion
     reg start_cordic;                    // Pulse to start CORDIC
 
@@ -76,8 +89,8 @@ module arctan (
         .clk(clk),
         .rst(rst),
         .start(start_cordic),
-        .angle_q14(cordic_input_q14),   // Input in Q2.14
-        .result_q14(cordic_result),     // arctan(1/x) in Q2.14 radians
+        .angle_q14(cordic_input_q14),     // Input in Q2.14
+        .result_q14(cordic_result),       // arctan(1/x) in Q2.14 radians
         .secondary_q14(cordic_secondary), // x_final, not used
         .cordic_valid(cordic_valid),
         .done(cordic_done)
@@ -156,8 +169,8 @@ module arctan (
                     end else begin
                         // For any other integer, |a| > 1
                         if (a_reg > 0) begin
-                            cordic_input_q14 <= 16'd16384 / a_reg;   // 1/a in Q2.14
-                            result_sign      <= 0;
+                            cordic_input_q14 <= 16'd16384 / a_reg;    // 1/a in Q2.14
+                            result_sign      <= 0;                    // positive result
                         end else begin
                             cordic_input_q14 <= 16'd16384 / (-a_reg); // 1/|a|
                             result_sign      <= 1;                    // negative result
@@ -168,7 +181,7 @@ module arctan (
                 end
 
                 PREPARE_INPUT: begin
-                    start_cordic <= 1'b1;      // Single-cycle start CORDIC
+                    start_cordic <= 1'b1;      // Single-cycle pulse to start CORDIC
                     state        <= CORDIC_CALC;
                 end
 
@@ -180,6 +193,7 @@ module arctan (
                 end
 
                 ADJUST_RESULT: begin
+                    // For |a| > 1:
                     if (result_sign)
                         angle_q14 <= -PI_OVER_2_Q14 - cordic_result_q14;
                     else
@@ -189,13 +203,13 @@ module arctan (
 
                 RAD_TO_DEG: begin
                     if (rad_to_deg_done) begin
-                        deg_q14 <= deg_q14_wire;  // Latch the value
+                        deg_q14 <= deg_q14_wire;  // latch first
                         state   <= BF16_START;
                     end
                 end
 
                 BF16_START: begin
-                    start_bf16 <= 1'b1;  // Start BF16 conversion next cycle, input stable
+                    start_bf16 <= 1'b1;  // Start BF16 conversion on next cycle; input stable
                     state      <= OUTPUT;
                 end
 
@@ -226,7 +240,7 @@ module rad_to_deg (
     output reg done
 );
     
-    localparam signed [31:0] RAD_TO_DEG_SCALE = 32'd58668;  // (180/pi) * 1024
+    localparam signed [31:0] RAD_TO_DEG_SCALE = 32'd58668; 
     
     reg [2:0] state, next_state;
     localparam IDLE=3'd0, MUL1=3'd1, MUL2=3'd2, MUL3=3'd3, SHIFT=3'd4, OUTPUT_ST=3'd5;

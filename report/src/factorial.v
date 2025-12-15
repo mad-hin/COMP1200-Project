@@ -8,6 +8,18 @@
 //     .done(fac_done)
 // );
 
+// Requirements:
+// Input: a is an integer in the range [-999, 999], no need to check the range.
+// Output: a factorial, must be represented in BF16 format.
+// If a < 0, output error=1, no calculation needed.
+// If a = 0, output result=1 (in BF16 format).
+// If a = 1, output result=1 (in BF16 format).
+// If a > 12, output error=1, no calculation needed.
+// Internal calculation uses unsigned 32-bit integer, then convert to BF16 for output.
+// No LUTs or IP cores allowed.
+// Must run at 300MHz.
+// All comments in module should be in English.
+
 `timescale 1ns / 1ps
 `include "define.vh"
 

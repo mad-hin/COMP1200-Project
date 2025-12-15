@@ -1,12 +1,17 @@
+// Number format: Q2.14
+// Verilog-2001
+// Must run at 300MHz
+// No IP cores or direct LUT implementations allowed
+
 module cordic_core #(
-    parameter MODE = 0,               // 0:SIN, 1:ARCTAN
+    parameter MODE = 0,               // 0: SIN, 1: ARCTAN
     parameter integer ITERATIONS = 11,
-    parameter DEEP_PIPELINE = 1      
+    parameter DEEP_PIPELINE = 1       // 0: single-cycle/stage; 1: two-cycle/stage (split shift and add/sub)
 )(
     input  wire clk,
     input  wire rst,
     input  wire start,
-    // SIN: angle(rad,Q2.14); ARCTAN: x in Q2.14 (y fixed 1.0)
+    // SIN: angle (rad, Q2.14); ARCTAN: x in Q2.14 (y is fixed to 1.0)
     input  wire signed [15:0] angle_q14,
     output reg  signed [15:0] result_q14,
     output reg  signed [15:0] secondary_q14,
@@ -51,7 +56,7 @@ module cordic_core #(
     reg signed [15:0] lut_reg   [0:ITERATIONS-1];
     reg               valid_shift [0:ITERATIONS-1];
 
-    // Stage 0: Load input
+    // Stage 0: load input
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             x_pipe[0]     <= 16'sd0;
@@ -89,7 +94,7 @@ module cordic_core #(
     generate
         for (i = 0; i < ITERATIONS; i = i + 1) begin : cordic_stage
             if (DEEP_PIPELINE) begin : deep
-                // Phase A: Shift and LUT register
+                // Phase A: shift and LUT register
                 always @(posedge clk or posedge rst) begin
                     if (rst) begin
                         x_shift[i]     <= 16'sd0;
@@ -104,7 +109,7 @@ module cordic_core #(
                     end
                 end
 
-                // Phase B: Addition/Subtraction and z update
+                // Phase B: add/sub and z update
                 always @(posedge clk or posedge rst) begin
                     if (rst) begin
                         x_pipe[i+1]     <= 16'sd0;
@@ -198,7 +203,7 @@ module cordic_core #(
             done          <= 1'b0;
         end else begin
             cordic_valid <= valid_pipe[ITERATIONS];
-            done         <= valid_pipe[ITERATIONS]; // Single-cycle pulse
+            done         <= valid_pipe[ITERATIONS]; // single-cycle pulse
 
             case (MODE)
                 0: begin // SIN: result=sin, secondary=cos

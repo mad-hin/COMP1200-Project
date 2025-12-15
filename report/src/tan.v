@@ -8,6 +8,23 @@
 //     .error(tan_error),
 //     .done(tan_done)
 // );
+
+// Requirements:
+// - Input: integer degrees in range [-999, 999] (no range check required).
+// - Output: tangent value in BF16 format.
+//
+// Algorithm:
+// 1) Reduce the input angle to an equivalent angle in [-pi/2, pi/2] to preserve the tangent value.
+// 2) If the reduced angle is exactly 90 or -90, set error
+// 3) Use CORDIC in mode 0 to compute sin and cos simultaneously (Q2.14 format).
+// 4) Convert sin and cos from Q2.14 to BF16, then compute tan = sin / cos using BF16 divider.
+// 5) The final tan result remains in BF16 format.
+//
+// Constraints:
+// - No LUTs or IP cores allowed.
+// - Design must run at 300 MHz.
+// - Use English comments in the module.
+
 `timescale 1ns / 1ps
 `include "define.vh"
 
@@ -25,6 +42,7 @@ module tan (
     wire deg_to_rad_error, bf16_div_error;
     wire signed [15:0] angle_q14;
     wire signed [15:0] sin_q14, cos_q14;
+    wire [15:0] sin_bf14, cos_bf14;
     wire [15:0] sin_bf16, cos_bf16;
     wire [15:0] tan_bf16;
 
@@ -81,7 +99,6 @@ module tan (
     // ============================================================================
     // Submodules
     // ============================================================================
-
     // Degree to rad (Q2.14)
     deg_to_rad u_deg_to_rad (
         .clk(clk),
@@ -242,8 +259,6 @@ module tan (
 
                 // Start BF16 conversions one cycle after cordic outputs are latched
                 CONV_START: begin
-                    // sin_bf16_ready <= 0;
-                    // cos_bf16_ready <= 0;
                     start_sin_bf16 <= 1;
                     start_cos_bf16 <= 1;
                     state <= CONV_SIN;
