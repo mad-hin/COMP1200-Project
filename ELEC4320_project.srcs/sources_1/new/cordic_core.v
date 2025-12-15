@@ -17,7 +17,7 @@ module cordic_core #(
     output reg  done
 );
     localparam signed [15:0] K_Q14   = 16'h26E2; // 0.607252935 * 2^14
-    localparam signed [15:0] X_FIXED = 16'h4000; // 1.0 in Q2.14
+    localparam signed [15:0] ONE_FIXED = 16'h4000; // 1.0 in Q2.14
 
     // 根据迭代次数自动匹配流水深度
     reg signed [15:0] x_pipe [0:ITERATIONS];
@@ -39,8 +39,8 @@ module cordic_core #(
                     z_pipe[0] <= angle_q14; 
                 end
                 1: begin // ARCTAN mode: x=input, y=1.0
-                    x_pipe[0] <= angle_q14; 
-                    y_pipe[0] <= X_FIXED; 
+                    x_pipe[0] <= ONE_FIXED;
+                    y_pipe[0] <= angle_q14;
                     z_pipe[0] <= 0; 
                 end
                 default: begin 

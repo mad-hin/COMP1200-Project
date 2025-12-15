@@ -16,6 +16,8 @@
 //arctan(a) = π/2 - arctan(1/a) for a>1
 //arctan(a) = - π/2 - arctan(1/a) for a<-1
 
+//cordic 需要 y<=x 
+//如果 x=1，y=1/a cordic计算出来的结果是 arctan(y/x) = arctan(1/a)
 
 //输入：整数斜率，范围[-999,999]，但不检查输入范围
 //输出：BF16格式的反正切角度
@@ -56,10 +58,11 @@ module arctan (
     localparam IDLE           = 4'd0;
     localparam CHECK_SPECIAL  = 4'd1;
     localparam PREPARE_INPUT  = 4'd2;
-    localparam CORDIC_CALC    = 4'd3;  // kept for readability
+    localparam CORDIC_CALC    = 4'd3;
     localparam ADJUST_RESULT  = 4'd4;
     localparam RAD_TO_DEG     = 4'd5;
-    localparam OUTPUT         = 4'd6;
+    localparam BF16_START     = 4'd6;
+    localparam OUTPUT         = 4'd7;
 
     reg signed [15:0] a_reg;             // Latched input
     reg signed [15:0] cordic_input_q14;  // 1/|a| in Q2.14
@@ -69,6 +72,7 @@ module arctan (
     reg use_complement;                  // Always 1 for |a|>1, kept for clarity
     reg result_sign;                     // 1 if final angle negative
     reg start_bf16;                      // Pulse to start BF16 conversion
+    reg start_cordic;                    // Pulse to start CORDIC
 
     // Module instances
     wire cordic_done;
@@ -91,7 +95,7 @@ module arctan (
     ) u_cordic (
         .clk(clk),
         .rst(rst),
-        .start(state == PREPARE_INPUT),
+        .start(start_cordic),
         .angle_q14(cordic_input_q14),   // Input in Q2.14
         .result_q14(cordic_result),     // arctan(1/x) in Q2.14 radians
         .secondary_q14(cordic_secondary), // x_final, not used
@@ -141,8 +145,10 @@ module arctan (
             use_complement <= 0;
             result_sign <= 0;
             start_bf16 <= 0;
+            start_cordic <= 0;
         end else begin
-            start_bf16 <= 0; // default deassert
+            start_bf16  <= 0; // default deassert
+            start_cordic<= 0;
             case (state)
                 IDLE: begin
                     done  <= 0;
@@ -182,6 +188,11 @@ module arctan (
                 end
 
                 PREPARE_INPUT: begin
+                    start_cordic <= 1'b1;      // 单拍启动 CORDIC
+                    state        <= CORDIC_CALC;
+                end
+
+                CORDIC_CALC: begin
                     if (cordic_done) begin
                         cordic_result_q14 <= cordic_result;
                         state <= ADJUST_RESULT;
@@ -199,10 +210,14 @@ module arctan (
 
                 RAD_TO_DEG: begin
                     if (rad_to_deg_done) begin
-                        deg_q14    <= deg_q14_wire;
-                        start_bf16 <= 1'b1;   // kick BF16 conversion
-                        state      <= OUTPUT;
+                        deg_q14 <= deg_q14_wire;  // 先锁存
+                        state   <= BF16_START;
                     end
+                end
+
+                BF16_START: begin
+                    start_bf16 <= 1'b1;  // 下一拍启动 BF16 转换，输入已稳定
+                    state      <= OUTPUT;
                 end
 
                 OUTPUT: begin
@@ -219,7 +234,6 @@ module arctan (
     end
 
 endmodule
-// ...existing code...
 
 // ============================================================================
 // Radians to Degrees Converter Module
