@@ -168,27 +168,33 @@ module bf16_divider (
                         result <= special_case_result;
                         state <= OUTPUT;
                     end else begin
-                        // Leading-one detection for full 16-bit quotient
-                        leading_pos = 0;
-                        for (k = 15; k >= 0; k = k - 1) begin
-                            if (div_quo_reg[2][k]) begin
-                                leading_pos = k[4:0];
-                                disable for;
-                            end
-                        end
-                        norm_quo = div_quo_reg[2] << (15 - leading_pos);
-                        norm_exp_adj = $signed(leading_pos) - 15; // shift left => exponent decreases
-                        temp_exp = result_exp_reg + norm_exp_adj;
-
-                        if (temp_exp >= 10'sd255) begin
-                            result <= {result_sign_reg, 8'hFF, 7'h00};
-                            error  <= 1;
-                        end else if (temp_exp <= 0) begin
+                        if (div_quo_reg[2] == 16'b0) begin
                             result <= {result_sign_reg, 8'h00, 7'h00};
+                            state  <= OUTPUT;
                         end else begin
-                            result <= {result_sign_reg, temp_exp[7:0], norm_quo[14:8]};
+                            leading_pos = 0;
+                            begin : find_leading_one
+                                for (k = 15; k >= 0; k = k - 1) begin
+                                    if (div_quo_reg[2][k]) begin
+                                        leading_pos = k[4:0];
+                                        disable find_leading_one;
+                                    end
+                                end
+                            end
+                            norm_quo     = div_quo_reg[2] << (15 - leading_pos);
+                            norm_exp_adj = $signed(leading_pos) - 15; // shift left => exponent decreases
+                            temp_exp     = result_exp_reg + norm_exp_adj;
+
+                            if (temp_exp >= 10'sd255) begin
+                                result <= {result_sign_reg, 8'hFF, 7'h00};
+                                error  <= 1;
+                            end else if (temp_exp <= 0) begin
+                                result <= {result_sign_reg, 8'h00, 7'h00};
+                            end else begin
+                                result <= {result_sign_reg, temp_exp[7:0], norm_quo[14:8]};
+                            end
+                            state <= OUTPUT;
                         end
-                        state <= OUTPUT;
                     end
                 end
 
