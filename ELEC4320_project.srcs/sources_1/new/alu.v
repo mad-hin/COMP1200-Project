@@ -118,47 +118,47 @@ module alu(
 //        .done(sub_done)
 //    );
 
-//    mul alu_mul (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_MUL)),
-//        .a(a_val),
-//        .b(b_val),
-//        .result(mul_result),
-//        .error(mul_error),
-//        .done(mul_done)
-//    );
+    mul alu_mul (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_MUL)),
+        .a(a_val),
+        .b(b_val),
+        .result(mul_result),
+        .error(mul_error),
+        .done(mul_done)
+    );
 
-//    div alu_div (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_DIV)),
-//        .a(a_val),
-//        .b(b_val),
-//        .result(div_result),
-//        .error(div_error),
-//        .done(div_done)
-//    );
+    div alu_div (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_DIV)),
+        .a(a_val),
+        .b(b_val),
+        .result(div_result),
+        .error(div_error),
+        .done(div_done)
+    );
 
-//    sqrt alu_sqrt (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_SQRT)),
-//        .a(a_val),
-//        .result(sqrt_result),
-//        .error(sqrt_error),
-//        .done(sqrt_done)
-//    );
+    sqrt alu_sqrt (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_SQRT)),
+        .a(a_val),
+        .result(sqrt_result),
+        .error(sqrt_error),
+        .done(sqrt_done)
+    );
 
-//    cos alu_cos (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
-//        .a( sw_reg == `OP_SIN ? (a_val - 16'sd90) : a_val ), // sin(x)=cos(x-90)
-//        .result(cos_result),
-//        .error(cos_error),
-//        .done(cos_done)
-//    );
+    cos alu_cos (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_COS || sw_reg == `OP_SIN)),
+        .a( sw_reg == `OP_SIN ? (a_val - 16'sd90) : a_val ), // sin(x)=cos(x-90)
+        .result(cos_result),
+        .error(cos_error),
+        .done(cos_done)
+    );
 
     // sin alu_sin (
     //     .clk(clk),
@@ -170,87 +170,87 @@ module alu(
     //     .done(sin_done)
     // );
 
-//    tan alu_tan (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_TAN)),
-//        .a(a_val),
-//        .result(tan_result),
-//        .error(tan_error),
-//        .done(tan_done)
-//    );
+    tan alu_tan (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_TAN)),
+        .a(a_val),
+        .result(tan_result),
+        .error(tan_error),
+        .done(tan_done)
+    );
 
-//    arcsin alu_asin (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_ASIN)),
-//        .a(a_val),
-//        .result(asin_result),
-//        .error(asin_error),
-//        .done(asin_done)
-//    );
+    arcsin alu_asin (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_ASIN)),
+        .a(a_val),
+        .result(asin_result),
+        .error(asin_error),
+        .done(asin_done)
+    );
 
-//    arccos alu_acos (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_ACOS)),
-//        .a(a_val),
-//        .result(acos_result),
-//        .error(acos_error),
-//        .done(acos_done)
-//    );
+    arccos alu_acos (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_ACOS)),
+        .a(a_val),
+        .result(acos_result),
+        .error(acos_error),
+        .done(acos_done)
+    );
 
-//    arctan alu_atan (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_ATAN)),
-//        .a(a_val),
-//        .result(atan_result),
-//        .error(atan_error),
-//        .done(atan_done)
-//    );
+    arctan alu_atan (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_ATAN)),
+        .a(a_val),
+        .result(atan_result),
+        .error(atan_error),
+        .done(atan_done)
+    );
 
-//    exp alu_exp (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_EXP)),
-//        .a(a_val),
-//        .result(exp_result),
-//        .error(exp_error),
-//        .done(exp_done)
-//    );
+    exp alu_exp (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_EXP)),
+        .a(a_val),
+        .result(exp_result),
+        .error(exp_error),
+        .done(exp_done)
+    );
 
-    // fac alu_fac (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .start(op_start && (sw_reg == `OP_FAC)),
-    //     .a(a_val),
-    //     .result(fac_result),
-    //     .error(fac_error),
-    //     .done(fac_done)
-    // );
+        fac alu_fac (
+            .clk(clk),
+            .rst(rst),
+            .start(op_start && (sw_reg == `OP_FAC)),
+            .a(a_val),
+            .result(fac_result),
+            .error(fac_error),
+            .done(fac_done)
+        );
 
-//    log alu_log (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_LOG)),
-//        .a(a_val),
-//        .b(b_val),
-//        .result(log_result),
-//        .error(log_error),
-//        .done(log_done)
-//    );
+    log alu_log (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_LOG)),
+        .a(a_val),
+        .b(b_val),
+        .result(log_result),
+        .error(log_error),
+        .done(log_done)
+    );
 
-//    pow alu_pow (
-//        .clk(clk),
-//        .rst(rst),
-//        .start(op_start && (sw_reg == `OP_POW)),
-//        .a(a_val),
-//        .b(b_val),
-//        .result(pow_result),
-//        .error(pow_error),
-//        .done(pow_done)
-//    );
+    pow alu_pow (
+        .clk(clk),
+        .rst(rst),
+        .start(op_start && (sw_reg == `OP_POW)),
+        .a(a_val),
+        .b(b_val),
+        .result(pow_result),
+        .error(pow_error),
+        .done(pow_done)
+    );
 
     // State machine
     always @(posedge clk or posedge rst) begin
@@ -401,14 +401,14 @@ module alu(
                                 state <= OUTPUT;
                             end
                         end
-                        // `OP_FAC: begin
-                        //     if (fac_done) begin
-                        //         result <= fac_result;
-                        //         error <= fac_error;
-                        //         cal_done <= 1;
-                        //         state <= OUTPUT;
-                        //     end
-                        // end
+                        `OP_FAC: begin
+                            if (fac_done) begin
+                                result <= fac_result;
+                                error <= fac_error;
+                                cal_done <= 1;
+                                state <= OUTPUT;
+                            end
+                        end
                         `OP_LOG: begin
                             if (log_done) begin
                                 result <= log_result;

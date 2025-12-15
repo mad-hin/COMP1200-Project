@@ -70,3 +70,5 @@ xvlog.*
 *.debug
 
 build/
+
+*.csv
