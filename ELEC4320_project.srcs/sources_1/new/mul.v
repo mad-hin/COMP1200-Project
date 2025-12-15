@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+
+`include "define.vh"
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -26,7 +28,7 @@ module mul(
     input wire start,
     input wire signed [`INPUTOUTBIT-1:0] a,
     input wire signed [`INPUTOUTBIT-1:0] b,
-    output reg signed [`INPUTOUTBIT-1:0] result, // BF16
+    output reg [`INPUTOUTBIT-1:0] result, // BF16
     output reg error = 0,
     output reg done
 );

@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+
+`include "define.vh"
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -24,7 +26,7 @@ module pow(
     input wire start,
     input wire signed [`INPUTOUTBIT-1:0] a,
     input wire signed [`INPUTOUTBIT-1:0] b,
-    output reg signed [`INPUTOUTBIT-1:0] result, // BF16
+    output reg [`INPUTOUTBIT-1:0] result, // BF16
     output reg error,
     output reg done
 );
@@ -83,7 +85,7 @@ module pow(
     reg signed [31:0] e_ln2;
 
     // BF16 output register
-    reg [15:0] result;
+    reg [15:0] result_reg;
 
     reg signed [31:0] calc_exp; 
     reg signed [63:0] temp_mult;
@@ -154,11 +156,11 @@ module pow(
                             error<=1; 
                             state<=S_DONE;
                         end else begin
-                            result<=0; 
+                            result_reg<=0; 
                             state<=S_DONE;
                         end
                     end else if (b == 0) begin
-                            result<=16'h3f80; 
+                            result_reg<=16'h3f80; 
                             state<=S_DONE;
                         end else if (a[15]) begin
                             result_is_neg<=b[0]; 
@@ -313,7 +315,7 @@ module pow(
 
                 S_CONVERT_SHIFT: begin
                     if (abs_final == 0) begin
-                        result = 0;
+                        result_reg = 0;
                         state <= S_CONVERT_PACK;
                     end else begin
                         norm_shift <= clz(abs_final);
@@ -323,20 +325,20 @@ module pow(
 
                 S_CONVERT_PACK: begin
                     if (abs_final == 0) begin
-                        result = 0;
+                        result_reg = 0;
                     end else begin
                         // BF16 Exponent: bias(127) + internal_offset - norm_shift + k
                         calc_exp = 142 - norm_shift + k_integer;
 
                         if (calc_exp >= 255) begin
                             error <= 1;
-                            result = {result_is_neg, 8'hFF, 7'h0};  // BF16 ±Inf
+                            result_reg = {result_is_neg, 8'hFF, 7'h0};  // BF16 ±Inf
                         end else if (calc_exp <= 0) begin
-                            result = 0;  // Underflow to zero
+                            result_reg = 0;  // Underflow to zero
                         end else begin
                             // Extract 7-bit mantissa for BF16 (shift by 24 instead of 8)
                             bf16_mant = (abs_final << norm_shift) >> 24;
-                            result = {result_is_neg, calc_exp[7:0], bf16_mant};
+                            result_reg = {result_is_neg, calc_exp[7:0], bf16_mant};
                         end
                     end
                     state <= S_DONE;
@@ -344,6 +346,7 @@ module pow(
 
                 S_DONE: begin
                     done <= 1;
+                    result <= result_reg;
                     if (!start) state <= S_IDLE;
                 end
             endcase
