@@ -60,12 +60,28 @@ module cal_tb();
         forever #1.67 clk = ~clk;
     end
     
-    // Debounce time calculation:
-    // clk_slow = 300MHz / 3 = 100MHz (10ns period)
-    // STABLE = 200000 cycles at 100MHz = 2ms = 2,000,000 ns
-    // Need to hold button for > 2ms
-    localparam DEBOUNCE_TIME = 2500000;  // 2.5ms in ns (with margin)
-    localparam BUTTON_GAP = 500000;       // 0.5ms gap between button presses
+    // Timing parameters
+    localparam DEBOUNCE_TIME = 2100000;  // 2.1ms - just over debounce threshold
+    localparam BUTTON_GAP = 3000000;      // 3ms gap - ensure debouncer fully resets
+    localparam RESET_TIME = 1000000;      // 1ms reset pulse
+    localparam SETTLE_TIME = 10000000;    // 10ms settle after reset
+    
+    // Task to perform system reset
+    task system_reset;
+        begin
+            $display("  [RESET] Resetting system...");
+            rst = 1;
+            btn_left = 0;
+            btn_right = 0;
+            btn_up = 0;
+            btn_down = 0;
+            btn_mid = 0;
+            #RESET_TIME;
+            rst = 0;
+            #SETTLE_TIME;
+            $display("  [RESET] System ready.");
+        end
+    endtask
     
     // Test stimulus
     initial begin
@@ -78,106 +94,387 @@ module cal_tb();
         btn_down = 0;
         btn_mid = 0;
         
-        // Reset the system
+        // Initial reset
         #100;
         rst = 0;
-        #5000000;  // Wait 5ms for system to settle
+        #SETTLE_TIME;
         
+        // =====================================================
         // Test 1: Addition (5 + 3 = 8)
+        // =====================================================
         $display("\n=== Test 1: Addition 5 + 3 ===");
-        sw = `OP_ADD;
-        #1000000;  // Wait 1ms
-        
-        // Input first operand (5)
-        simulate_input(5);
-        
-        // Input second operand (3)
-        simulate_input(3);
-        
-        // Wait for calculation to complete
-        wait(cal_done);
-        #100000;
-        $display("Result: %d (Expected: 8)", alu_result);
-        
-        #5000000;  // Wait 5ms between tests
-        
-        // Test 2: Addition (100 + 200 = 300)
-        $display("\n=== Test 2: Addition 100 + 200 ===");
+        system_reset();
         sw = `OP_ADD;
         #1000000;
         
-        simulate_input(100);
+        simulate_input(5);
+        #5000000;
+        simulate_input(3);
+        
+        wait(cal_done);
+        #100000;
+        $display("Result: 0x%04h (Expected: 0x4100 = 8.0)", alu_result);
+        
+        // =====================================================
+        // Test 2: Addition (-100 + 200 = 100)
+        // =====================================================
+        $display("\n=== Test 2: Addition -100 + 200 ===");
+        system_reset();
+        sw = `OP_ADD;
+        #1000000;
+        
+        simulate_input(-100);
+        #5000000;
         simulate_input(200);
         
         wait(cal_done);
         #100000;
-        $display("Result: %d (Expected: 300)", alu_result);
-                                                                         
+        $display("Result: 0x%04h (Expected: 0x42C8 = 100.0)", alu_result);
+        
+        // =====================================================
+        // Test 3: Addition (-50 + -30 = -80)
+        // =====================================================
+        $display("\n=== Test 3: Addition -50 + -30 ===");
+        system_reset();
+        sw = `OP_ADD;
+        #1000000;
+        
+        simulate_input(-50);
+        #5000000;
+        simulate_input(-30);
+        
+        wait(cal_done);
+        #100000;
+        $display("Result: 0x%04h (Expected: 0xC2A0 = -80.0)", alu_result);
+        
+        // =====================================================
+        // Test 4: Subtraction (10 - 4 = 6)
+        // =====================================================
+        // $display("\n=== Test 4: Subtraction 10 - 4 ===");
+        // system_reset();
+        // sw = `OP_SUB;
+        // #1000000;
+        
+        // simulate_input(10);
+        // #5000000;
+        // simulate_input(4);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x40C0 = 6.0)", alu_result);
+        
+        // =====================================================
+        // Test 5: Subtraction (50 - 30 = 20)
+        // =====================================================
+        // $display("\n=== Test 5: Subtraction 50 - 30 ===");
+        // system_reset();
+        // sw = `OP_SUB;
+        // #1000000;
+        
+        // simulate_input(50);
+        // #5000000;
+        // simulate_input(30);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x41A0 = 20.0)", alu_result);
+        
+        // =====================================================
+        // Test 6: Multiplication (2 * 3 = 6)
+        // =====================================================
+        // $display("\n=== Test 6: Multiplication 2 * 3 ===");
+        // system_reset();
+        // sw = `OP_MUL;
+        // #1000000;
+        
+        // simulate_input(2);
+        // #5000000;
+        // simulate_input(3);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x40C0 = 6.0)", alu_result);
+        
+        // =====================================================
+        // Test 7: Multiplication (-999 * 0 = 0)
+        // =====================================================
+        // $display("\n=== Test 7: Multiplication -999 * 0 ===");
+        // system_reset();
+        // sw = `OP_MUL;
+        // #1000000;
+        
+        // simulate_input(-999);
+        // #5000000;
+        // simulate_input(0);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x0000 = 0.0)", alu_result);
+        
+        // =====================================================
+        // Test 8: Multiplication (-321 * -123 = 39483)
+        // =====================================================
+        // $display("\n=== Test 8: Multiplication -321 * -123 ===");
+        // system_reset();
+        // sw = `OP_MUL;
+        // #1000000;
+        
+        // simulate_input(-321);
+        // #5000000;
+        // simulate_input(-123);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x471A = 39483.0)", alu_result);
+        
+        // =====================================================
+        // Test 9: Division (5 / 2 = 2.5)
+        // =====================================================
+        // $display("\n=== Test 9: Division 5 / 2 ===");
+        // system_reset();
+        // sw = `OP_DIV;
+        // #1000000;
+        
+        // simulate_input(5);
+        // #5000000;
+        // simulate_input(2);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4020 = 2.5)", alu_result);
+        
+        // =====================================================
+        // Test 10: Division (-999 / 3 = -333)
+        // =====================================================
+        // $display("\n=== Test 10: Division -999 / 3 ===");
+        // system_reset();
+        // sw = `OP_DIV;
+        // #1000000;
+        
+        // simulate_input(-999);
+        // #5000000;
+        // simulate_input(3);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0xC3A6 = -333.0)", alu_result);
+        
+        // =====================================================
+        // Test 11: Division (100 / -3 = -33.333...)
+        // =====================================================
+        // $display("\n=== Test 11: Division 100 / -3 ===");
+        // system_reset();
+        // sw = `OP_DIV;
+        // #1000000;
+        
+        // simulate_input(100);
+        // #5000000;
+        // simulate_input(-3);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0xC205 = -33.33)", alu_result);
+        
+        // =====================================================
+        // Test 12: Division by Zero (999 / 0 = ERROR)
+        // =====================================================
+        // $display("\n=== Test 12: Division 999 / 0 (ERROR) ===");
+        // system_reset();
+        // sw = `OP_DIV;
+        // #1000000;
+        
+        // simulate_input(999);
+        // #5000000;
+        // simulate_input(0);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h, Error: %b (Expected: ERROR)", alu_result, alu_error);
+        
+        // =====================================================
+        // Test 13: Logarithm (log10(100) = 2)
+        // =====================================================
+        // $display("\n=== Test 13: Logarithm log10(100) ===");
+        // system_reset();
+        // sw = `OP_LOG;
+        // #1000000;
+        
+        // simulate_input(10);
+        // #5000000;
+        // simulate_input(100);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4000 = 2.0)", alu_result);
+        
+        // =====================================================
+        // Test 14: Logarithm (log2(8) = 3)
+        // =====================================================
+        // $display("\n=== Test 14: Logarithm log2(8) ===");
+        // system_reset();
+        // sw = `OP_LOG;
+        // #1000000;
+        
+        // simulate_input(2);
+        // #5000000;
+        // simulate_input(8);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4040 = 3.0)", alu_result);
+        
+        // =====================================================
+        // Test 15: Power (2^3 = 8)
+        // =====================================================
+        // $display("\n=== Test 15: Power 2^3 ===");
+        // system_reset();
+        // sw = `OP_POW;
+        // #1000000;
+        
+        // simulate_input(2);
+        // #5000000;
+        // simulate_input(3);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4100 = 8.0)", alu_result);
+        
+        // =====================================================
+        // Test 16: Power (99^0 = 1)
+        // =====================================================
+        // $display("\n=== Test 16: Power 99^0 ===");
+        // system_reset();
+        // sw = `OP_POW;
+        // #1000000;
+        
+        // simulate_input(99);
+        // #5000000;
+        // simulate_input(0);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x3F80 = 1.0)", alu_result);
+        
+        // =====================================================
+        // Test 17: Square Root (sqrt(4) = 2)
+        // =====================================================
+        // $display("\n=== Test 17: Square Root sqrt(4) ===");
+        // system_reset();
+        // sw = `OP_SQRT;
+        // #1000000;
+        
+        // simulate_input(4);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x4000 = 2.0)", alu_result);
+        
+        // =====================================================
+        // Test 18: Square Root (sqrt(2) = 1.414...)
+        // =====================================================
+        // $display("\n=== Test 18: Square Root sqrt(2) ===");
+        // system_reset();
+        // sw = `OP_SQRT;
+        // #1000000;
+        
+        // simulate_input(2);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x3FB5 = 1.414)", alu_result);
+        
+        // =====================================================
+        // Test 19: Exponential (e^2 = 7.389...)
+        // =====================================================
+        // $display("\n=== Test 19: Exponential e^2 ===");
+        // system_reset();
+        // sw = `OP_EXP;
+        // #1000000;
+        
+        // simulate_input(2);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x40EC = 7.389)", alu_result);
+        
+        // =====================================================
+        // Test 20: Exponential (e^0 = 1)
+        // =====================================================
+        // $display("\n=== Test 20: Exponential e^0 ===");
+        // system_reset();
+        // sw = `OP_EXP;
+        // #1000000;
+        
+        // simulate_input(0);
+        
+        // wait(cal_done);
+        // #100000;
+        // $display("Result: 0x%04h (Expected: 0x3F80 = 1.0)", alu_result);
+
         $display("\n=== All tests completed! ===");
         #1000000;
         $finish;
     end
-    
-    // Task to simulate button input
+
+    // Task to simulate button input (supports -999 to 999)
     task simulate_input;
-        input [`INPUTOUTBIT-1:0] value;
-        integer i, digit_count, temp_value;
-        reg [3:0] digits [2:0];  // Store up to 3 digits
+        input signed [15:0] value;
+        reg is_negative;
+        reg [9:0] abs_value;
+        reg [3:0] units, tens, hundreds;
         begin
-            // Extract individual digits
-            digits[0] = value % 10;           // units
-            digits[1] = (value / 10) % 10;    // tens
-            digits[2] = (value / 100) % 10;   // hundreds
-            
-            // Count significant digits
-            if (value >= 100)
-                digit_count = 3;
-            else if (value >= 10)
-                digit_count = 2;
-            else
-                digit_count = 1;
-            
-            $display("  Inputting value: %d", value);
-            
-            // Input starts at units position (current_digit = 0)
-            // First, set units digit
-            $display("    Setting units digit: %d", digits[0]);
-            input_digit(digits[0]);
-            
-            // If we have tens digit, move left and set it
-            if (digit_count >= 2) begin
-                // Move to tens position
-                press_button_left();
-                $display("    Setting tens digit: %d", digits[1]);
-                input_digit(digits[1]);
+            // Determine sign and absolute value
+            if (value < 0) begin
+                is_negative = 1;
+                abs_value = -value;
+            end else begin
+                is_negative = 0;
+                abs_value = value;
             end
             
-            // If we have hundreds digit, move left and set it
-            if (digit_count >= 3) begin
-                // Move to hundreds position
+            // Extract individual digits from absolute value
+            units = abs_value % 10;
+            tens = (abs_value / 10) % 10;
+            hundreds = (abs_value / 100) % 10;
+            
+            if (is_negative)
+                $display("Value: -%0d (sign=-, hundreds=%0d, tens=%0d, units=%0d)", abs_value, hundreds, tens, units);
+            else
+                $display("Value: %0d (sign=+, hundreds=%0d, tens=%0d, units=%0d)", abs_value, hundreds, tens, units);
+            
+            // Input starts at units position (current_digit = 0)
+            // Set units digit
+            $display("Setting units digit: %0d", units);
+            repeat(units) press_button_up();
+            
+            // Move to tens digit and set it
+            if (abs_value >= 10 || is_negative) begin
                 press_button_left();
-                $display("    Setting hundreds digit: %d", digits[2]);
-                input_digit(digits[2]);
+                $display("Setting tens digit: %0d", tens);
+                repeat(tens) press_button_up();
+            end
+            
+            // Move to hundreds digit and set it
+            if (abs_value >= 100 || is_negative) begin
+                press_button_left();
+                $display("Setting hundreds digit: %0d", hundreds);
+                repeat(hundreds) press_button_up();
+            end
+            
+            // Set sign bit if negative
+            if (is_negative) begin
+                press_button_left();  // Move to sign position
+                $display("Setting sign: negative");
+                press_button_up();  // Toggle sign bit
             end
             
             // Press middle button to confirm input
-            $display("    Confirming input...");
+            $display("Confirming input...");
             press_button_mid();
             
-            // Wait for input_done to propagate
-            #5000000;  // Wait 5ms for synchronization
-            $display("  Input complete!");
-        end
-    endtask
-
-    // Helper task to input a single digit by pressing up button
-    task input_digit;
-        input [3:0] digit;
-        integer j;
-        begin
-            for (j = 0; j < digit; j = j + 1) begin
-                press_button_up();
-            end
+            // Wait for input processing
+            #5000000;
+            $display("Input complete");
         end
     endtask
     
@@ -185,9 +482,19 @@ module cal_tb();
     task press_button_up;
         begin
             btn_up = 1;
-            #DEBOUNCE_TIME;  // Hold for debounce time
+            #DEBOUNCE_TIME;
             btn_up = 0;
-            #BUTTON_GAP;     // Gap between presses
+            #BUTTON_GAP;
+        end
+    endtask
+    
+    // Task to press DOWN button with proper debounce timing
+    task press_button_down;
+        begin
+            btn_down = 1;
+            #DEBOUNCE_TIME;
+            btn_down = 0;
+            #BUTTON_GAP;
         end
     endtask
     
@@ -221,15 +528,15 @@ module cal_tb();
         end
     endtask
     
-    // Monitor key signals
+    // Debug monitor - watch key signals
     initial begin
-        $monitor("Time=%0t rst=%b sw=%b state=%d input_done=%b a_val=%d b_val=%d result=%d cal_done=%b", 
-                 $time, rst, sw, uut.state, uut.io_ctrl.input_done, uut.a_val, uut.b_val, alu_result, cal_done);
+        $monitor("Time=%0t state=%d a_val=%d b_val=%d input_val=%d input_done=%b cal_done=%b result=0x%04h", 
+                 $time, uut.state, uut.a_val, uut.b_val, uut.input_val, uut.io_ctrl.input_done, cal_done, alu_result);
     end
     
     // Timeout watchdog
     initial begin
-        #500000000;  // 500ms timeout (increased due to longer debounce times)
+        #2000000000;  // 2s timeout (increased for multiple tests)
         $display("ERROR: Simulation timeout!");
         $finish;
     end
