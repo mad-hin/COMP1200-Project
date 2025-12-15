@@ -193,29 +193,24 @@ module pow(
                     state <= S_CALC_LN;
                 end
 
+                // LOGARITHM CORDIC - ONE ITERATION PER CLOCK CYCLE
                 S_CALC_LN: begin
-                    // CORDIC iteration is usually fast enough for 300MHz 
-                    // because it's just Shift + Add/Sub.
+                    // Pipeline: compute next iteration values in registers
                     if (y[31] == 0) begin 
-                        x_next = x - (y >>> i); 
-                        y_next = y - (x >>> i); 
-                        z_next = z + atanh_val; 
+                        x <= x - (y >>> i); 
+                        y <= y - (x >>> i); 
+                        z <= z + atanh_val; 
                     end else begin 
-                        x_next = x + (y >>> i); 
-                        y_next = y + (x >>> i); 
-                        z_next = z - atanh_val; 
+                        x <= x + (y >>> i); 
+                        y <= y + (x >>> i); 
+                        z <= z - atanh_val; 
                     end
-                    x <= x_next; 
-                    y <= y_next; 
-                    z <= z_next;
 
-                    if (i <= ITERATIONS) begin
-                        if ((i == 4 || i == 13) && !repeat_done) 
-                            repeat_done <= 1; 
-                        else begin 
-                            i <= i + 1; 
-                            repeat_done <= 0; 
-                        end
+                    if ((i == 4 || i == 13) && !repeat_done) begin
+                        repeat_done <= 1; 
+                    end else if (i < ITERATIONS) begin
+                        i <= i + 1; 
+                        repeat_done <= 0; 
                     end else begin
                         e_ln2 = (32 - clz(abs_a)) * LN2_FIXED;
                         ln_a_val <= (z <<< 1) - e_ln2;
@@ -275,30 +270,24 @@ module pow(
                     state <= S_CALC_EXP;
                 end
 
-                // ------------------------------------------------
-                // 5. Exponential CORDIC
-                // ------------------------------------------------
+                // EXPONENTIAL CORDIC - ONE ITERATION PER CLOCK CYCLE
                 S_CALC_EXP: begin
+                    // Pipeline: compute next iteration values in registers
                     if (z[31] == 0) begin 
-                        x_next = x + (y >>> i); 
-                        y_next = y + (x >>> i); 
-                        z_next = z - atanh_val; 
+                        x <= x + (y >>> i); 
+                        y <= y + (x >>> i); 
+                        z <= z - atanh_val; 
                     end else begin 
-                        x_next = x - (y >>> i); 
-                        y_next = y - (x >>> i); 
-                        z_next = z + atanh_val; 
+                        x <= x - (y >>> i); 
+                        y <= y - (x >>> i); 
+                        z <= z + atanh_val; 
                     end
-                    x <= x_next; 
-                    y <= y_next; 
-                    z <= z_next;
                     
-                    if (i <= ITERATIONS) begin
-                        if ((i == 4 || i == 13) && !repeat_done) 
-                            repeat_done <= 1; 
-                        else begin 
-                            i <= i + 1; 
-                            repeat_done <= 0; 
-                        end
+                    if ((i == 4 || i == 13) && !repeat_done) begin
+                        repeat_done <= 1; 
+                    end else if (i < ITERATIONS) begin
+                        i <= i + 1; 
+                        repeat_done <= 0; 
                     end else begin 
                         state <= S_CONVERT_CLZ;
                     end

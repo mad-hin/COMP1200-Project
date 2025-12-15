@@ -133,30 +133,28 @@ module exp(
                     state<=S_CALC;
                 end
 
+                // CORDIC ITERATION - ONE ITERATION PER CLOCK CYCLE
                 S_CALC: begin
+                    // Pipeline: compute next iteration values in registers
                     if(z[31] == 0) begin 
-                        x_next=x+(y>>>i);
-                        y_next=y+(x>>>i); 
-                        z_next=z-atanh_val; 
+                        x<=x+(y>>>i);
+                        y<=y+(x>>>i); 
+                        z<=z-atanh_val; 
                     end
                     else begin 
-                        x_next=x-(y>>>i);
-                        y_next=y-(x>>>i); 
-                        z_next=z+atanh_val; 
+                        x<=x-(y>>>i);
+                        y<=y-(x>>>i); 
+                        z<=z+atanh_val; 
                     end
-                    x<=x_next;
-                    y<=y_next; 
-                    z<=z_next;
 
-                    if(i<=ITERATIONS) begin
-                        if((i==4||i==13)&&!repeat_done) 
-                            repeat_done<=1; 
-                        else begin 
-                            i<=i+1; 
-                            repeat_done<=0; 
-                        end
+                    // Advance iteration counter
+                    if((i==4||i==13)&&!repeat_done) begin
+                        repeat_done<=1; // Repeat iterations 4 and 13
+                    end else if(i < ITERATIONS) begin
+                        i<=i+1; 
+                        repeat_done<=0; 
                     end else begin
-                        state<=S_CONVERT;
+                        state<=S_CONVERT; // All iterations done
                     end
                 end
 

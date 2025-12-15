@@ -86,8 +86,9 @@ module display_controller(
 
     // Stage 2: Perform Multiplication and Integer Extraction
     // This isolates the heavy multiplier (16x27 bits) in its own clock cycle
-    reg [31:0] abs_int_r;
-    reg [26:0] abs_frac_val_r;
+    // FANOUT REDUCTION: These registers drive many division/comparison operations
+    (* max_fanout = 32 *) reg [31:0] abs_int_r;
+    (* max_fanout = 32 *) reg [26:0] abs_frac_val_r;
     
     always @(posedge clk) begin
         abs_int_r <= val_abs_r[47:16];
@@ -95,37 +96,46 @@ module display_controller(
         abs_frac_val_r <= (val_abs_r[15:0] * 64'd100000000) >> 16;
     end
 
-    // ---------------- Decimal digits --------------------
-    // Use the PIPELINED registers (abs_int_r, abs_frac_val_r) instead of wires
+    // ---------------- Stage 3: Decimal Digit Extraction (PIPELINED) --------------------
+    // CRITICAL: Division operations create 52 logic levels! Must pipeline.
+    // Register the extracted digits to break the combinational path.
+    // Apply max_fanout to force register replication
     
-    // Integer digits (up to 5 supported)
-    wire [3:0] d4 = (abs_int_r / 10000) % 10;
-    wire [3:0] d3 = (abs_int_r / 1000 ) % 10;
-    wire [3:0] d2 = (abs_int_r / 100  ) % 10;
-    wire [3:0] d1 = (abs_int_r / 10   ) % 10;
-    wire [3:0] d0 =  abs_int_r % 10;
-
-    // Fraction digits (8 digits)
-    wire [3:0] f7 = (abs_frac_val_r / 10000000) % 10;
-    wire [3:0] f6 = (abs_frac_val_r / 1000000) % 10;
-    wire [3:0] f5 = (abs_frac_val_r / 100000) % 10;
-    wire [3:0] f4 = (abs_frac_val_r / 10000) % 10;
-    wire [3:0] f3 = (abs_frac_val_r / 1000) % 10;
-    wire [3:0] f2 = (abs_frac_val_r / 100) % 10;
-    wire [3:0] f1 = (abs_frac_val_r / 10) % 10;
-    wire [3:0] f0 =  abs_frac_val_r % 10;
-
-    // Determine integer length
-    wire [2:0] int_len = (abs_int_r >= 10000) ? 3'd5 :
-                         (abs_int_r >= 1000 ) ? 3'd4 :
-                         (abs_int_r >= 100  ) ? 3'd3 :
-                         (abs_int_r >= 10   ) ? 3'd2 : 3'd1;
-
-    wire has_sign = sign_bit_r;
-    wire has_frac = (abs_frac_val_r != 0);
+    (* max_fanout = 16 *) reg [3:0] d4_r, d3_r, d2_r, d1_r, d0_r;
+    (* max_fanout = 16 *) reg [3:0] f7_r, f6_r, f5_r, f4_r, f3_r, f2_r, f1_r, f0_r;
+    reg [2:0] int_len_r;
+    (* max_fanout = 32 *) reg has_sign_r, has_frac_r;
+    
+    always @(posedge clk) begin
+        // Integer digits
+        d4_r <= (abs_int_r / 10000) % 10;
+        d3_r <= (abs_int_r / 1000 ) % 10;
+        d2_r <= (abs_int_r / 100  ) % 10;
+        d1_r <= (abs_int_r / 10   ) % 10;
+        d0_r <=  abs_int_r % 10;
+        
+        // Fraction digits
+        f7_r <= (abs_frac_val_r / 10000000) % 10;
+        f6_r <= (abs_frac_val_r / 1000000) % 10;
+        f5_r <= (abs_frac_val_r / 100000) % 10;
+        f4_r <= (abs_frac_val_r / 10000) % 10;
+        f3_r <= (abs_frac_val_r / 1000) % 10;
+        f2_r <= (abs_frac_val_r / 100) % 10;
+        f1_r <= (abs_frac_val_r / 10) % 10;
+        f0_r <=  abs_frac_val_r % 10;
+        
+        // Control signals
+        int_len_r <= (abs_int_r >= 10000) ? 3'd5 :
+                     (abs_int_r >= 1000 ) ? 3'd4 :
+                     (abs_int_r >= 100  ) ? 3'd3 :
+                     (abs_int_r >= 10   ) ? 3'd2 : 3'd1;
+        has_sign_r <= sign_bit_r;
+        has_frac_r <= (abs_frac_val_r != 0);
+    end
     
     // Construct stream of symbols: [Sign] [Int Digits] [Frac Digits]
     // Max symbols: 1 (sign) + 5 (int) + 8 (frac) = 14. We use array of 12 (enough for most cases).
+    // NOW USES REGISTERED DIGITS (d4_r, d3_r, ..., f0_r, int_len_r, has_sign_r, has_frac_r)
     
     reg [3:0] sym [0:11];
     reg [11:0] dp_mask; // 1 where DP should be
@@ -139,31 +149,31 @@ module display_controller(
         i = 0;
         
         // 1. Sign
-        if (has_sign) begin
+        if (has_sign_r) begin
             sym[i] = 4'd10; // '-'
             i = i + 1;
         end
         
-        // 2. Integer digits (MSB first)
-        if (int_len >= 5) begin sym[i] = d4; i=i+1; end
-        if (int_len >= 4) begin sym[i] = d3; i=i+1; end
-        if (int_len >= 3) begin sym[i] = d2; i=i+1; end
-        if (int_len >= 2) begin sym[i] = d1; i=i+1; end
-        sym[i] = d0; 
+        // 2. Integer digits (MSB first) - use REGISTERED values
+        if (int_len_r >= 5) begin sym[i] = d4_r; i=i+1; end
+        if (int_len_r >= 4) begin sym[i] = d3_r; i=i+1; end
+        if (int_len_r >= 3) begin sym[i] = d2_r; i=i+1; end
+        if (int_len_r >= 2) begin sym[i] = d1_r; i=i+1; end
+        sym[i] = d0_r; 
         
         // Decimal point goes after this digit (d0)
-        if (has_frac) dp_mask[i] = 1'b1;
+        if (has_frac_r) dp_mask[i] = 1'b1;
         i = i + 1;
         
-        // 3. Fraction digits (up to 8)
-        if (has_frac && i < 12) begin sym[i] = f7; i=i+1; end
-        if (has_frac && i < 12) begin sym[i] = f6; i=i+1; end
-        if (has_frac && i < 12) begin sym[i] = f5; i=i+1; end
-        if (has_frac && i < 12) begin sym[i] = f4; i=i+1; end
-        if (has_frac && i < 12) begin sym[i] = f3; i=i+1; end
-        if (has_frac && i < 12) begin sym[i] = f2; i=i+1; end
-        if (has_frac && i < 12) begin sym[i] = f1; i=i+1; end
-        if (has_frac && i < 12) begin sym[i] = f0; i=i+1; end
+        // 3. Fraction digits (up to 8) - use REGISTERED values
+        if (has_frac_r && i < 12) begin sym[i] = f7_r; i=i+1; end
+        if (has_frac_r && i < 12) begin sym[i] = f6_r; i=i+1; end
+        if (has_frac_r && i < 12) begin sym[i] = f5_r; i=i+1; end
+        if (has_frac_r && i < 12) begin sym[i] = f4_r; i=i+1; end
+        if (has_frac_r && i < 12) begin sym[i] = f3_r; i=i+1; end
+        if (has_frac_r && i < 12) begin sym[i] = f2_r; i=i+1; end
+        if (has_frac_r && i < 12) begin sym[i] = f1_r; i=i+1; end
+        if (has_frac_r && i < 12) begin sym[i] = f0_r; i=i+1; end
     end
 
     // ---------------- Windowing ----------------
@@ -250,22 +260,36 @@ module display_controller(
     end
     wire [1:0] mux_sel = refresh_cnt[18:17];
 
-    always @* begin
-        case (mux_sel)
-            2'd0: begin an=4'b1110; seg=seg_decode(d0_sel); dp=dp0_sel; end
-            2'd1: begin an=4'b1101; seg=seg_decode(d1_sel); dp=dp1_sel; end
-            2'd2: begin an=4'b1011; seg=seg_decode(d2_sel); dp=dp2_sel; end
-            default: begin an=4'b0111; seg=seg_decode(d3_sel); dp=dp3_sel; end
-        endcase
+    // CRITICAL TIMING FIX: Add output register stage to break seg/an/dp path
+    // Paths were -21ns due to combinational segment encoding. Register the outputs.
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            seg <= 7'b1111111;
+            an <= 4'b1111;
+            dp <= 1'b1;
+        end else begin
+            case (mux_sel)
+                2'd0: begin an <= 4'b1110; seg <= seg_decode(d0_sel); dp <= dp0_sel; end
+                2'd1: begin an <= 4'b1101; seg <= seg_decode(d1_sel); dp <= dp1_sel; end
+                2'd2: begin an <= 4'b1011; seg <= seg_decode(d2_sel); dp <= dp2_sel; end
+                default: begin an <= 4'b0111; seg <= seg_decode(d3_sel); dp <= dp3_sel; end
+            endcase
+        end
     end
 
-    // ---------------- LED window indicator ----------------
-    always @* begin
-        led = 16'b0;
-        if (error) led[2:0] = 3'b000;
-        else if (num_windows==2'd1) led[2:0] = 3'b000;
-        else if (num_windows==2'd2) led[2:0] = (win_idx==0) ? 3'b001 : 3'b000;
-        else led[2:0] = (win_idx==0) ? 3'b001 : 
-                        (win_idx==1) ? 3'b010 : 3'b000; // 001, 010, 000 for 3 windows
+    // ---------------- LED window indicator (REGISTERED) ----------------
+    // CRITICAL: LED output was combinational on int_len_r (41 fanout).
+    // Register to break the path and add 1 cycle latency (acceptable for display).
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            led <= 16'b0;
+        end else begin
+            led <= 16'b0;
+            if (error) led[2:0] <= 3'b000;
+            else if (num_windows==2'd1) led[2:0] <= 3'b000;
+            else if (num_windows==2'd2) led[2:0] <= (win_idx==0) ? 3'b001 : 3'b000;
+            else led[2:0] <= (win_idx==0) ? 3'b001 : 
+                             (win_idx==1) ? 3'b010 : 3'b000; // 001, 010, 000 for 3 windows
+        end
     end
 endmodule

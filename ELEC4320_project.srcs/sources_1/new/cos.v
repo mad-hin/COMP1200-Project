@@ -51,12 +51,17 @@ module cos (
     reg signed [15:0] rdeg;                 // reduced deg for FSM use
 
     // State machine
-    reg [2:0] state;
-    localparam IDLE       = 3'd0;
-    localparam DEG_TO_RAD = 3'd1;
-    localparam CORDIC     = 3'd2;
-    localparam BF16_CONV  = 3'd3;
-    localparam OUTPUT     = 3'd4;
+    reg [3:0] state;  // Expanded to 4 bits for additional states
+    localparam IDLE         = 4'd0;
+    localparam REDUCE_ANGLE = 4'd1;  // NEW: Pipelined angle reduction (cycle 1)
+    localparam MAP_ANGLE    = 4'd2;  // NEW: Map to [0,90] (cycle 2)
+    localparam DEG_TO_RAD   = 4'd3;
+    localparam CORDIC       = 4'd4;
+    localparam BF16_CONV    = 4'd5;
+    localparam OUTPUT       = 4'd6;
+    
+    // NEW: Register for pipelined angle reduction
+    reg signed [15:0] rdeg;  // Reduced angle [0,180]
 
     // Reduce any degree input to [0,360), then to [0,180] with sign flag
     function automatic signed [15:0] reduce_deg_cos(input signed [15:0] deg);
@@ -138,24 +143,31 @@ module cos (
                             result <= 16'hFFC0; // BF16 NaN
                             done   <= 1;
                         end else begin
-                            a_reg = a;
-
-                            // Angle reduction
-                            rdeg  = reduce_deg_cos(a_reg); // [0,180]
-
-                            // Map to [0,90] and sign
-                            if (rdeg <= 16'sd90) begin
-                                angle_deg_for_cordic <= rdeg;
-                                need_sign_flip       <= 1'b0;
-                            end else begin
-                                angle_deg_for_cordic <= 16'sd180 - rdeg; // (90,180] -> [0,90]
-                                need_sign_flip       <= 1'b1;            // cos negative in Q2
-                            end
-
-                            start_deg_to_rad <= 1;
-                            state            <= DEG_TO_RAD;
+                            a_reg <= a;  // Store input, will be processed next cycle
+                            state <= REDUCE_ANGLE;
                         end
                     end
+                end
+                
+                // NEW: Pipelined angle reduction (break sw_reg fanout path)
+                REDUCE_ANGLE: begin
+                    // Cycle 1: Compute rdeg from a_reg (registered reduce_deg_cos)
+                    rdeg <= reduce_deg_cos(a_reg);
+                    state <= MAP_ANGLE;
+                end
+
+                // NEW: Map angle to [0,90] range
+                MAP_ANGLE: begin
+                    // Cycle 2: Use rdeg to compute angle mapping (now using registered rdeg, not sw_reg)
+                    if (rdeg <= 16'sd90) begin
+                        angle_deg_for_cordic <= rdeg;
+                        need_sign_flip       <= 1'b0;
+                    end else begin
+                        angle_deg_for_cordic <= 16'sd180 - rdeg; // (90,180] -> [0,90]
+                        need_sign_flip       <= 1'b1;            // cos negative in Q2
+                    end
+                    start_deg_to_rad <= 1;
+                    state            <= DEG_TO_RAD;
                 end
 
                 DEG_TO_RAD: begin

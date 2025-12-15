@@ -57,12 +57,14 @@ module arctan (
     reg [3:0] state;
     localparam IDLE           = 4'd0;
     localparam CHECK_SPECIAL  = 4'd1;
-    localparam PREPARE_INPUT  = 4'd2;
-    localparam CORDIC_CALC    = 4'd3;
-    localparam ADJUST_RESULT  = 4'd4;
-    localparam RAD_TO_DEG     = 4'd5;
-    localparam BF16_START     = 4'd6;
-    localparam OUTPUT         = 4'd7;
+    localparam DIV_INIT       = 4'd2;  // NEW: Initialize division
+    localparam DIV_CALC       = 4'd3;  // NEW: Iterative division
+    localparam PREPARE_INPUT  = 4'd4;
+    localparam CORDIC_CALC    = 4'd5;
+    localparam ADJUST_RESULT  = 4'd6;
+    localparam RAD_TO_DEG     = 4'd7;
+    localparam BF16_START     = 4'd8;
+    localparam OUTPUT         = 4'd9;
 
     reg signed [15:0] a_reg;             // Latched input
     reg signed [15:0] cordic_input_q14;  // 1/|a| in Q2.14
@@ -73,6 +75,12 @@ module arctan (
     reg result_sign;                     // 1 if final angle negative
     reg start_bf16;                      // Pulse to start BF16 conversion
     reg start_cordic;                    // Pulse to start CORDIC
+    
+    // Division registers (16384 / |a| in 16 clock cycles)
+    reg [31:0] div_rem;     // Remainder (shift register)
+    reg [15:0] div_quo;     // Quotient
+    reg [15:0] div_denom;   // Denominator (|a|)
+    reg [4:0] div_cnt;      // Bit counter (0..15)
 
     // Module instances
     wire cordic_done;
@@ -175,15 +183,43 @@ module arctan (
                         state  <= IDLE;
                     end else begin
                         // For any other integer, |a| > 1
+                        // Start iterative division: 16384 / |a|
                         if (a_reg > 0) begin
-                            cordic_input_q14 <= 16'd16384 / a_reg;   // 1/a in Q2.14
-                            result_sign      <= 0;
+                            div_denom   <= a_reg;
+                            result_sign <= 0;
                         end else begin
-                            cordic_input_q14 <= 16'd16384 / (-a_reg); // 1/|a|
-                            result_sign      <= 1;                    // negative result
+                            div_denom   <= -a_reg;  // Use absolute value
+                            result_sign <= 1;       // Negative result
                         end
                         use_complement <= 1'b1;
+                        state <= DIV_INIT;
+                    end
+                end
+                
+                // NEW: Initialize division (16384 / |a|)
+                DIV_INIT: begin
+                    div_rem <= {16'd0, 16'd16384}; // Dividend = 16384 (Q2.14 = 1.0)
+                    div_quo <= 16'd0;
+                    div_cnt <= 5'd15;  // 16 bits to compute
+                    state   <= DIV_CALC;
+                end
+                
+                // NEW: Iterative division - ONE BIT PER CLOCK
+                DIV_CALC: begin
+                    // Shift remainder left, subtract divisor if possible
+                    if (div_rem[31:16] >= div_denom) begin
+                        div_rem <= {div_rem[30:16] - div_denom[14:0], div_rem[15:0], 1'b0};
+                        div_quo <= {div_quo[14:0], 1'b1};
+                    end else begin
+                        div_rem <= {div_rem[30:0], 1'b0};
+                        div_quo <= {div_quo[14:0], 1'b0};
+                    end
+                    
+                    if (div_cnt == 0) begin
+                        cordic_input_q14 <= div_quo;  // Result: 16384 / |a|
                         state <= PREPARE_INPUT;
+                    end else begin
+                        div_cnt <= div_cnt - 1;
                     end
                 end
 

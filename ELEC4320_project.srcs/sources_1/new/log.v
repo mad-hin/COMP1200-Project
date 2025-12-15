@@ -154,36 +154,35 @@ module log (
                     state <= S_CALC_B;
                 end
 
-                // CORDIC Core
+                // CORDIC Core - ONE ITERATION PER CLOCK CYCLE
                 S_CALC_B, S_CALC_BASE: begin
+                    // Pipeline: compute next iteration values
                     if ((y[31] == 0)) begin 
-                        x_next = x - (y >>> i);
-                        y_next = y - (x >>> i);
-                        z_next = z + atanh_val; 
+                        x <= x - (y >>> i);
+                        y <= y - (x >>> i);
+                        z <= z + atanh_val; 
                     end else begin 
-                        x_next = x + (y >>> i);
-                        y_next = y + (x >>> i);
-                        z_next = z - atanh_val;
+                        x <= x + (y >>> i);
+                        y <= y + (x >>> i);
+                        z <= z - atanh_val;
                     end
-                    x <= x_next; y <= y_next; z <= z_next;
 
-                    if (i <= ITERATIONS) begin
-                        if ((i == 4 || i == 13) && repeat_done == 0) begin
-                            repeat_done <= 1; 
-                        end else begin
-                            i <= i + 1;
-                            repeat_done <= 0; 
-                        end
+                    // Check if we need to repeat current iteration (4 and 13)
+                    if ((i == 4 || i == 13) && repeat_done == 0) begin
+                        repeat_done <= 1; // Stay on same iteration
+                    end else if (i < ITERATIONS) begin
+                        i <= i + 1;
+                        repeat_done <= 0;
                     end else begin
-                        if (state == S_CALC_B) e_ln2 = (32 - clz(b))*ln2_fixed_point;
-                        else e_ln2 = (32 - clz(a))*ln2_fixed_point;
-
+                        // All iterations done - proceed to next state
                         if (state == S_CALC_B) begin
-                             ln_b_val <= (z <<< 1) - e_ln2; 
-                             state <= S_PREP_BASE;
+                            e_ln2 = (32 - clz(b))*ln2_fixed_point;
+                            ln_b_val <= (z <<< 1) - e_ln2; 
+                            state <= S_PREP_BASE;
                         end else begin
-                             ln_base_val <= (z <<< 1) - e_ln2;
-                             state <= S_DIV_PREP;
+                            e_ln2 = (32 - clz(a))*ln2_fixed_point;
+                            ln_base_val <= (z <<< 1) - e_ln2;
+                            state <= S_DIV_PREP;
                         end
                     end
                 end
@@ -215,18 +214,18 @@ module log (
                     end
                 end
 
-                // Division - Step 2 (Bit Serial)
+                // Division - Step 2 (Bit Serial) - ONE BIT PER CLOCK
                 S_DIV_CALC: begin
-                    
+                    // Pipeline registers for division iteration
                     rem_shift = div_rem << 1;
                     sub_res = rem_shift[63:32] - {1'b0, div_denom};
                     
                     if (sub_res[32] == 0) begin // Positive
-                        div_rem = {sub_res[31:0], rem_shift[31:0]};
-                        div_quo = (div_quo << 1) | 1'b1;
+                        div_rem <= {sub_res[31:0], rem_shift[31:0]};
+                        div_quo <= (div_quo << 1) | 1'b1;
                     end else begin // Negative
-                        div_rem = rem_shift;
-                        div_quo = (div_quo << 1) | 1'b0;
+                        div_rem <= rem_shift;
+                        div_quo <= (div_quo << 1) | 1'b0;
                     end
                     
                     if (div_cnt == 0) begin
