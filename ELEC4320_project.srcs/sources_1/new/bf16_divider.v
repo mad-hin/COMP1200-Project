@@ -7,204 +7,203 @@
 
 `timescale 1ns / 1ps
 
+// 协助计算tan(a)的除法器, a是整数角度
+// 输入：sin(a)、cos(a) 的 BF16；输出：tan(a) 的 BF16
 module bf16_divider (
-    input  wire clk,
-    input  wire rst,
-    input  wire start,
-    input  wire [15:0] a,    // BF16: 1s, 8e, 7m
-    input  wire [15:0] b,    // BF16: 1s, 8e, 7m
-    output reg  [15:0] result,
-    output reg  error,
-    output reg  done
+    input  wire        clk,
+    input  wire        rst,
+    input  wire        start,
+    input  wire [15:0] a,      // BF16: 1s, 8e, 7m
+    input  wire [15:0] b,      // BF16: 1s, 8e, 7m
+    output reg  [15:0] result, // BF16: 1s, 8e, 7m
+    output reg         error,
+    output reg         done
 );
-    // FSM
-    reg [3:0] state;
-    localparam IDLE       = 4'd0,
-               DECODE     = 4'd1,
-               DIV_INIT   = 4'd2,
-               DIV_ITER   = 4'd3,
-               DIV_ITER2  = 4'd4,
-               DIV_NORM   = 4'd5,
-               OUTPUT     = 4'd6;
 
-    // Registers
-    reg a_sign_reg, b_sign_reg;
-    reg [7:0] a_exp_reg, b_exp_reg;
-    reg [7:0] a_mant_full_reg, b_mant_full_reg;
-    reg special_case_flag;
-    reg [15:0] special_case_result;
+localparam IDLE = 2'b00;
+localparam CALC = 2'b01;
+localparam NORM = 2'b10;
+localparam DONE = 2'b11;
 
-    reg result_sign_reg;
-    reg signed [9:0] result_exp_reg;
+reg [1:0]  state;
+reg [15:0] a_reg, b_reg;
+reg        sign_reg;
+reg [8:0]  exp_reg;       // 扩展1位用于溢出检测
+reg [31:0] mant_div_reg;  // 保存尾数除法结果（含额外小数位）
+reg [6:0]  mant_result;
 
-    reg [15:0] div_rem_reg [0:3];
-    reg [15:0] div_quo_reg [0:3];
-    reg [7:0]  numerator_reg [0:3];
-    reg [7:0]  denominator_reg;
+wire a_sign, b_sign, result_sign;
+wire [7:0] a_exp, b_exp;
+wire [6:0] a_mant, b_mant;
+wire a_zero, b_zero, a_inf, b_inf, a_nan, b_nan;
+wire [23:0] dividend, divisor;  // 带隐含位的尾数
+wire [7:0]  exp_diff;
 
-    reg [3:0] iter_cnt;
+// 提取各部分
+assign a_sign = a[15];
+assign b_sign = b[15];
+assign a_exp  = a[14:7];
+assign b_exp  = b[14:7];
+assign a_mant = a[6:0];
+assign b_mant = b[6:0];
 
-    // Normalization temp
-    reg [7:0] norm_mant_full;
-    reg signed [1:0] norm_exp_adj;
-    reg signed [9:0] temp_exp;
+// 特殊值检测
+assign a_zero = (a_exp == 8'h00) && (a_mant == 7'h00);
+assign b_zero = (b_exp == 8'h00) && (b_mant == 7'h00);
+assign a_inf  = (a_exp == 8'hFF) && (a_mant == 7'h00);
+assign b_inf  = (b_exp == 8'hFF) && (b_mant == 7'h00);
+assign a_nan  = (a_exp == 8'hFF) && (a_mant != 7'h00);
+assign b_nan  = (b_exp == 8'hFF) && (b_mant != 7'h00);
 
-    // Special checks
-    wire a_is_zero = (a[14:7]==0) && (a[6:0]==0);
-    wire b_is_zero = (b[14:7]==0) && (b[6:0]==0);
-    wire a_is_inf  = (a[14:7]==8'hFF) && (a[6:0]==0);
-    wire b_is_inf  = (b[14:7]==8'hFF) && (b[6:0]==0);
-    wire a_is_nan  = (a[14:7]==8'hFF) && (a[6:0]!=0);
-    wire b_is_nan  = (b[14:7]==8'hFF) && (b[6:0]!=0);
+// 符号计算
+assign result_sign = a_sign ^ b_sign;
 
-    wire special_case_nan        = a_is_nan || b_is_nan;
-    wire special_case_inf_a      = a_is_inf && !b_is_inf;
-    wire special_case_inf_b      = !a_is_inf && b_is_inf;
-    wire special_case_zero_a     = a_is_zero && !b_is_zero;
-    wire special_case_inf_div_inf= a_is_inf && b_is_inf;
+// 尾数扩展（添加隐含位）
+assign dividend = (a_exp == 8'h00) ? {1'b0, a_mant, 16'h0} : {1'b1, a_mant, 16'h0};
+assign divisor  = (b_exp == 8'h00) ? {1'b0, b_mant, 16'h0} : {1'b1, b_mant, 16'h0};
 
-    integer k;
-    reg [4:0] leading_pos;
-    reg [15:0] norm_quo;
+// 指数差计算：e_a - e_b + bias
+assign exp_diff = {1'b0, a_exp} - {1'b0, b_exp} + 8'd127;
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            state <= IDLE;
-            result <= 16'h0000;
-            error <= 0;
-            done <= 0;
-            special_case_flag <= 0;
-        end else begin
-            done <= 0;
-            case (state)
-                IDLE: begin
-                    error <= 0;
-                    special_case_flag <= 0;
-                    if (start) state <= DECODE;
-                end
-
-                DECODE: begin
-                    a_sign_reg <= a[15];
-                    b_sign_reg <= b[15];
-                    a_exp_reg  <= a[14:7];
-                    b_exp_reg  <= b[14:7];
-
-                    a_mant_full_reg <= (a[14:7]==0) ? {1'b0, a[6:0]} : {1'b1, a[6:0]};
-                    b_mant_full_reg <= (b[14:7]==0) ? {1'b0, b[6:0]} : {1'b1, b[6:0]};
-
-                    if (special_case_nan || (a_is_zero && b_is_zero) || special_case_inf_div_inf) begin
-                        special_case_result <= 16'hFFC0; // NaN
-                        special_case_flag <= 1;
-                        state <= DIV_NORM;
-                    end else if (b_is_zero) begin
-                        special_case_result <= {a[15]^b[15], 8'hFF, 7'h00}; // Inf
-                        special_case_flag <= 1;
-                        error <= 1;
-                        state <= DIV_NORM;
-                    end else if (special_case_zero_a) begin
-                        special_case_result <= {a[15]^b[15], 8'h00, 7'h00}; // 0
-                        special_case_flag <= 1;
-                        state <= DIV_NORM;
-                    end else if (special_case_inf_a) begin
-                        special_case_result <= {a[15]^b[15], 8'hFF, 7'h00}; // Inf
-                        special_case_flag <= 1;
-                        state <= DIV_NORM;
-                    end else if (special_case_inf_b) begin
-                        special_case_result <= {a[15]^b[15], 8'h00, 7'h00}; // 0
-                        special_case_flag <= 1;
-                        state <= DIV_NORM;
-                    end else begin
-                        result_sign_reg <= a[15] ^ b[15];
-                        result_exp_reg  <= $signed({2'b0, a[14:7]}) - $signed({2'b0, b[14:7]}) + 10'sd127;
-                        denominator_reg <= b_mant_full_reg;
-
-                        div_rem_reg[0] <= 0;
-                        div_quo_reg[0] <= 0;
-                        numerator_reg[0] <= a_mant_full_reg;
-                        iter_cnt <= 0;
-                        state <= DIV_INIT;
-                    end
-                end
-
-                DIV_INIT: begin
-                    div_rem_reg[1] <= {div_rem_reg[0][14:0], numerator_reg[0][7]};
-                    numerator_reg[1] <= {numerator_reg[0][6:0], 1'b0};
-                    state <= DIV_ITER;
-                end
-
-                DIV_ITER: begin
-                    if (div_rem_reg[1] >= {8'b0, denominator_reg}) begin
-                        div_rem_reg[2] <= div_rem_reg[1] - {8'b0, denominator_reg};
-                        div_quo_reg[1] <= {div_quo_reg[0][14:0], 1'b1};
-                    end else begin
-                        div_rem_reg[2] <= div_rem_reg[1];
-                        div_quo_reg[1] <= {div_quo_reg[0][14:0], 1'b0};
-                    end
-                    numerator_reg[2] <= numerator_reg[1];
-                    iter_cnt <= iter_cnt + 1;
-                    state <= DIV_ITER2;
-                end
-
-                DIV_ITER2: begin
-                    div_rem_reg[3] <= {div_rem_reg[2][14:0], numerator_reg[2][7]};
-                    numerator_reg[3] <= {numerator_reg[2][6:0], 1'b0};
-
-                    if (iter_cnt < 4'd15) begin
-                        div_rem_reg[0] <= div_rem_reg[3];
-                        div_quo_reg[0] <= div_quo_reg[1];
-                        numerator_reg[0] <= numerator_reg[3];
-                        state <= DIV_ITER;
-                    end else begin
-                        if (div_rem_reg[3] >= {8'b0, denominator_reg})
-                            div_quo_reg[2] <= {div_quo_reg[1][14:0], 1'b1};
-                        else
-                            div_quo_reg[2] <= {div_quo_reg[1][14:0], 1'b0};
-                        state <= DIV_NORM;
-                    end
-                end
-
-                DIV_NORM: begin
-                    if (special_case_flag) begin
-                        result <= special_case_result;
-                        state <= OUTPUT;
-                    end else begin
-                        if (div_quo_reg[2] == 16'b0) begin
-                            result <= {result_sign_reg, 8'h00, 7'h00};
-                            state  <= OUTPUT;
-                        end else begin
-                            leading_pos = 0;
-                            begin : find_leading_one
-                                for (k = 15; k >= 0; k = k - 1) begin
-                                    if (div_quo_reg[2][k]) begin
-                                        leading_pos = k[4:0];
-                                        disable find_leading_one;
-                                    end
-                                end
-                            end
-                            norm_quo     = div_quo_reg[2] << (15 - leading_pos);
-                            norm_exp_adj = $signed(leading_pos) - 15; // shift left => exponent decreases
-                            temp_exp     = result_exp_reg + norm_exp_adj;
-
-                            if (temp_exp >= 10'sd255) begin
-                                result <= {result_sign_reg, 8'hFF, 7'h00};
-                                error  <= 1;
-                            end else if (temp_exp <= 0) begin
-                                result <= {result_sign_reg, 8'h00, 7'h00};
-                            end else begin
-                                result <= {result_sign_reg, temp_exp[7:0], norm_quo[14:8]};
-                            end
-                            state <= OUTPUT;
-                        end
-                    end
-                end
-
-                OUTPUT: begin
-                    done <= 1;
-                    state <= IDLE;
-                end
-
-                default: state <= IDLE;
-            endcase
+// 24-bit 前导 1 位置（返回 0..24，24 表示全 0）
+function [4:0] clz24;
+    input [23:0] val;
+    integer i;
+    begin
+        clz24 = 5'd24;
+        for (i = 23; i >= 0; i = i - 1) begin
+            if (val[i]) begin
+                clz24 = 5'(23 - i);
+                disable clz24;
+            end
         end
     end
+endfunction
+
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        state        <= IDLE;
+        a_reg        <= 16'h0;
+        b_reg        <= 16'h0;
+        sign_reg     <= 1'b0;
+        exp_reg      <= 9'h0;
+        mant_div_reg <= 32'h0;
+        mant_result  <= 7'h0;
+        result       <= 16'h0;
+        error        <= 1'b0;
+        done         <= 1'b0;
+    end else begin
+        case (state)
+            IDLE: begin
+                done  <= 1'b0;
+                error <= 1'b0;
+                if (start) begin
+                    a_reg    <= a;
+                    b_reg    <= b;
+                    sign_reg <= result_sign;
+                    // 处理特殊情况
+                    if (b_zero && !a_zero && !a_nan) begin
+                        result <= {result_sign, 8'hFF, 7'h00}; // 除以零 -> Inf
+                        error  <= 1'b1;
+                        done   <= 1'b1;
+                        state  <= DONE;
+                    end else if (a_nan || b_nan) begin
+                        result <= 16'h7FC0; // NaN
+                        error  <= 1'b1;
+                        done   <= 1'b1;
+                        state  <= DONE;
+                    end else if (a_inf && b_inf) begin
+                        result <= 16'h7FC0; // Inf/Inf -> NaN
+                        error  <= 1'b1;
+                        done   <= 1'b1;
+                        state  <= DONE;
+                    end else if (a_inf) begin
+                        result <= {result_sign, 8'hFF, 7'h00};
+                        done   <= 1'b1;
+                        state  <= DONE;
+                    end else if (b_inf) begin
+                        result <= {result_sign, 8'h00, 7'h00};
+                        done   <= 1'b1;
+                        state  <= DONE;
+                    end else if (a_zero && !b_zero) begin
+                        result <= {result_sign, 8'h00, 7'h00};
+                        done   <= 1'b1;
+                        state  <= DONE;
+                    end else if (a_zero && b_zero) begin
+                        result <= 16'h7FC0; // 0/0 -> NaN
+                        error  <= 1'b1;
+                        done   <= 1'b1;
+                        state  <= DONE;
+                    end else begin
+                        // 正常计算路径
+                        exp_reg      <= {1'b0, exp_diff};
+                        mant_div_reg <= 32'h0;
+                        state        <= CALC;
+                    end
+                end
+            end
+
+            CALC: begin
+                // 尾数除法，左移 8 位保留更多小数精度
+                if (divisor != 24'h0)
+                    mant_div_reg <= (dividend << 8) / divisor; // 结果位宽约 24+8=32
+                else
+                    mant_div_reg <= 32'h0;
+                state <= NORM;
+            end
+
+            NORM: begin
+                // 取有效 24 位进行归一化
+                reg [23:0] mant24;
+                reg [4:0]  lz;
+                reg [8:0]  exp_adj;
+                reg [23:0] mant_norm;
+                mant24   = mant_div_reg[31:8];
+
+                if (mant24 == 0) begin
+                    // 结果为 0
+                    result <= {sign_reg, 8'h00, 7'h00};
+                    error  <= 1'b0;
+                end else begin
+                    lz = clz24(mant24);
+                    // 目标：最高位对齐到 bit23（1.x）
+                    if (lz > 23) lz = 23;
+                    // 向左移：减指数；向右移：加指数
+                    if (lz != 0)
+                        mant_norm = mant24 << lz;
+                    else
+                        mant_norm = mant24;
+                    exp_adj = exp_reg - lz;
+
+                    // 取 BF16 尾数（截断）
+                    mant_result = mant_norm[22:16];
+
+                    // 溢出 / 下溢检查
+                    if (exp_adj[8] || exp_adj[7:0] == 8'hFF) begin
+                        result <= {sign_reg, 8'hFF, 7'h00};
+                        error  <= 1'b1;
+                    end else if (exp_adj[7:0] == 8'h00) begin
+                        // 下溢到 0
+                        result <= {sign_reg, 8'h00, 7'h00};
+                        error  <= 1'b1;
+                    end else begin
+                        result <= {sign_reg, exp_adj[7:0], mant_result};
+                        error  <= 1'b0;
+                    end
+                end
+
+                done  <= 1'b1;
+                state <= DONE;
+            end
+
+            DONE: begin
+                done  <= 1'b0;  // 拉高一个周期后清零
+                state <= IDLE;
+            end
+
+            default: state <= IDLE;
+        endcase
+    end
+end
+
 endmodule

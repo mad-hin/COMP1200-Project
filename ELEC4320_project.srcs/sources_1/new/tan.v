@@ -257,8 +257,8 @@ module tan (
 
                 // Start BF16 conversions one cycle after cordic outputs are latched
                 CONV_START: begin
-                    sin_bf16_ready <= 0;
-                    cos_bf16_ready <= 0;
+                    // sin_bf16_ready <= 0;
+                    // cos_bf16_ready <= 0;
                     start_sin_bf16 <= 1;
                     start_cos_bf16 <= 1;
                     state <= CONV_SIN;
