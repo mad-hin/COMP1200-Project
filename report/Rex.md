@@ -1,3 +1,5 @@
+
+
 # 5.8 Cosine
 The trigonometric functions are implemented using the CORDIC algorithm. CORDIC is an iterative method that approximates target trigonometric values through a series of rotation operations, using only additions, subtractions, and bit shifts — making it very suitable for hardware implementations. On our resource-constrained FPGA, using CORDIC increases the likelihood of meeting the very challenging 300 MHz target. Because the inputs are integers, 11 iterations are sufficient to achieve a relative error of about 5%, which also reduces hardware resource usage. CORDIC performs calculations in radians, and since sine and cosine outputs lie within [-1, 1], we use Q2.14 fixed-point format for inputs and outputs. Fixed-point representation simplifies the CORDIC implementation and Q2.14 balances precision and resource usage.
 
