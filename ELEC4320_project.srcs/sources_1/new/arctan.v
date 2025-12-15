@@ -43,10 +43,10 @@ module arctan (
     // ============================================================================
     // Constants
     // ============================================================================
-    localparam BF16_45      = 16'h42B4;  // 45.0 in BF16
-    localparam BF16_NEG_45  = 16'hC2B4;  // -45.0 in BF16
+    localparam BF16_45      = 16'h4234;  // 45.0 in BF16
+    localparam BF16_NEG_45  = 16'hC234;  // -45.0 in BF16
     localparam BF16_ZERO    = 16'h0000;  // 0.0 in BF16
-    localparam BF16_NAN     = 16'hFFC0;  // NaN in BF16
+    localparam BF16_NAN     = 16'h7FC0;  // qNaN in BF16 (sign doesn't matter)
 
     // π/2 in Q2.14 format (90° = π/2 rad)
     localparam signed [15:0] PI_OVER_2_Q14 = 16'h3244;
