@@ -1,2 +1,29 @@
 \section{Introduction/Background/Overview of Design Ideas}
 % Example How to import image \includegraphics[width=\linewidth]{images/hamming.png}
+\subsection{Project Objective}
+The objective of this project is to design and implement a functional electronic calculator circuit on an FPGA development board. The core problem involves creating a digital system capable of processing data input, executing a comprehensive range of arithmetic and trigonometric calculations and displaying the results.
+
+\subsection{Overview of Design Ideas}
+This scientific calculator's architecture follows a modular design comprising three main circuits, all implemented on a Xilinx Artix-7 FPGA using Vivado 2024.1.
+
+\subsubsection{Data Input Processing Circuit}
+This module manages integer data entry, accepting input in the range of -999 to +999. It utilizes the 5-button interface on the Basys3 board. A dedicated debouncing circuit is incorporated to stabilize button inputs and allow users to select, adjust, and confirm digits. The switches are used to select the desired operation type from the 12 supported functions.
+
+\subsubsection{Arithmetic Operation Circuit}
+This is the core computation module, implementing 12 distinct mathematical operations across four categories which are Basic Arithmetic, Trigonometric, Inverse Trigonometric, and Advanced.
+
+\subsubsection{Numeric Formats}
+The primary format for results is the BFloat16 floating-point format. The internal CORDIC computations use Q2.14 fixed-point representation for high precision within the $\pm 2.0$ range.
+
+\subsubsection{Implementation Strategy} 
+Custom logic is used without relying on IP cores or look-up tables.\\
+\noindent Basic Arithmetic \& Power: These are implemented via BF16 direct operations or composite algorithms.\\
+\noindent
+Trigonometric \& Inverse Functions (sin, cos, tan, arcsin, arccos, arctan): 
+These are implemented using the CORDIC algorithm in circular rotation mode for functions and vectoring mode for inverse functions.\\
+
+\noindent Advanced Functions (exp, log)
+These utilize the hyperbolic CORDIC mode.
+
+\subsubsection{Result Processing Circuit}
+The circuit includes mechanisms for comprehensive error handling division by zero, domain errors, overflow/underflow. To ensure result stability, a valid signal is sent to the Result Processing Circuit upon computation completion.

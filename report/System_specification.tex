@@ -1,0 +1,63 @@
+\section{System Specification}
+
+\subsection{Development Environment}
+
+\begin{table}[H]
+\centering
+\caption{Development Environment}
+\begin{tabular}{|c|c|}
+    \hline
+    \textbf{Component} & \textbf{Specification} \\
+    \hline
+    FPGA Development Board & Basys 3 Artix-7 FPGA \\
+    \hline
+    Development Software & Vivado 2024.1.2 \\
+    \hline
+    Clock Frequency & 300MHz \\
+    \hline
+\end{tabular}
+\end{table}
+
+\subsection{Global I/O Summary}
+The FPGA-based scientific calculator utilizes the Basys 3 board's physical interfaces for user interaction and result display. The system operates with a 300MHz main clock that is internally divided to 100MHz for stable operation.
+\begin{table}[H]
+\centering
+\small
+\caption{Global I/O Summary Table}
+\begin{tabular}{|p{2.5cm}|p{2cm}|p{1.2cm}|p{3cm}|p{5.5cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{FPGA Pin(s)} & \textbf{Description} \\
+\hline
+clk & Input & 1-bit & W5 & 300MHz system clock \\
+\hline
+rst & Input & 1-bit & V17 (SW0) & Active-high reset switch \\
+\hline
+sw[3:0] & Input & 4-bit & W2, U1, T1, R2 & Operation selection switches (selects calculator function: ADD, SUB, MUL, DIV, SQRT, SIN, COS, TAN, etc.) \\
+\hline
+btn\_mid & Input & 1-bit & U18 & Center button - confirms input entry \\
+\hline
+btn\_up & Input & 1-bit & T10 & Up button - increment current digit \\
+\hline
+btn\_down & Input & 1-bit & U17 & Down button - decrement current digit \\
+\hline
+btn\_left & Input & 1-bit & W19 & Left button - move digit position left \\
+\hline
+btn\_right & Input & 1-bit & T17 & Right button - move digit position right \\
+\hline
+seg[6:0] & Output & 7-bit & W7, W6, U8, V5, U5, V5, U7 & 7-segment display cathodes (active-low) \\
+\hline
+dp & Output & 1-bit & V7 & Decimal point cathode (active-low) \\
+\hline
+an[3:0] & Output & 4-bit & U2, U4, V4, W4 & 7-segment display anodes (active-low, digit selected) \\
+\hline
+led[15:0] & Output & 16-bit & U16, F18, U18, V19, V18, U15, U14, V14, V13, V3, W5, U3, P3, P1, L1 & Status LEDs indicating display window position and system state \\
+\hline
+\end{tabular}
+\end{table}
+
+\noindent The five push buttons enable numeric input through digit selection and adjustment, while the four switches determine which mathematical operation to perform. 
+
+\noindent The 4-digit 7-segment display shows both input values during entry and the computed result with automatic scrolling for values exceeding 4 digits. 
+
+\noindent The 16 LEDs provide visual feedback for the current display window position when showing extended results.
+
