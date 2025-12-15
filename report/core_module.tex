@@ -33,23 +33,116 @@
 % Subsection for Multiplication
 \subsection{Multiplication}
 \label{subsec:multiplication}
-% Describe the functionality of the module here
-% Include a block diagram and pin description
-% Add a flowchart to explain the internal logic
+
+The \texttt{mul} module is a pipelined arithmetic unit designed to perform signed integer multiplication on two inputs (\texttt{a} and \texttt{b}) and automatically convert the resulting product into the BFloat16 (BF16) floating-point format.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:mul_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Multiplication Module Interface}
+\label{tab:mul_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{b}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{result}      & Output             & 16             & The computed product in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The multiplication module operates through a four-stage pipeline to convert signed integer inputs into a BFloat16 format. The stages are described as follows:
+\begin{enumerate}
+    \item \textbf{Stage 1:} Perform a signed 16×16 multiplication to generate a raw 32-bit product.
+    \item \textbf{Stage 2:} Extract the sign bit and compute the absolute value of the product to facilitate downstream normalization.
+    \item \textbf{Stage 3:} Use a priority encoder to determine the position of the leading '1' bit within the magnitude.
+    \item \textbf{Stage 4:} Construct the 16-bit BF16 result by calculating the exponent using a bias of 127 and extracting the required 7-bit mantissa. At this stage, the \texttt{done} signal is asserted to indicate valid output.
+\end{enumerate}
+
+\noindent The module also includes error handling to ensure that invalid inputs or computation errors are flagged appropriately.
 
 % Subsection for Division
 \subsection{Division}
 \label{subsec:division}
-% Describe the functionality of the module here
-% Include a block diagram and pin description
-% Add a flowchart to explain the internal logic
+
+The \texttt{div} module is a sequential hardware divider using the Restoring Division algorithm (Reference: \url{https://www.geeksforgeeks.org/computer-organization-architecture/restoring-division-algorithm-unsigned-integer/}). It is designed to divide two signed integers and output the result in BF16 format. The module utilizes a Finite State Machine (FSM) to manage the calculation stages, transitioning from initialization to integer division, fractional division, and finally output formatting.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:div_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Division Module Interface}
+\label{tab:div_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{b}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{result}      & Output             & 16             & The computed quotient in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation (e.g., division by zero). \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{div} module executes a four-stage finite state machine to convert signed integers into BFloat16 format. The stages are described as follows:
+\begin{enumerate}
+    \item \textbf{Initialization (S\_IDLE):} The system checks for division-by-zero errors, determines the result's sign, and converts inputs into absolute values, as the Restoring Division algorithm operates on unsigned integers.
+    \item \textbf{Integer Division (S\_INTDIV):} The module uses the Restoring Division algorithm to calculate the whole number portion of the quotient.
+    \item \textbf{Fractional Division (S\_FRACTIONDIV):} To capture sufficient precision for the floating-point mantissa, the operation continues for an additional eight cycles to generate fractional bits.
+    \item \textbf{Normalization and Packing (S\_OUTPUT):} The integer and fractional parts are concatenated and normalized by detecting the leading '1'. The biased exponent is computed, the 7-bit mantissa is extracted, and the components are packed into the final 16-bit register. The \texttt{done} signal is then asserted to indicate valid output.
+\end{enumerate}
+
+\noindent The module also includes error handling to ensure that invalid inputs, such as division by zero, are flagged appropriately.
 
 % Subsection for Square Root
 \subsection{Square Root}
 \label{subsec:square_root}
-% Describe the functionality of the module here
-% Include a block diagram and pin description
-% Add a flowchart to explain the internal logic
+
+The \texttt{sqrt} module is designed to compute the square root of a signed 16-bit integer and output the result in BFloat16 (BF16) floating-point format. It avoids using complex IP cores or DSP slices by implementing a hardware-efficient restoring binary square root algorithm (Reference: \url{https://en.wikipedia.org/wiki/Square_root_algorithms#Binary_numeral_system_(base_2)}).
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:sqrt_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Square Root Module Interface}
+\label{tab:sqrt_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{result}      & Output             & 16             & The computed square root in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation (e.g., invalid input). \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{sqrt} module operates through a five-state Finite State Machine (FSM). The stages are described as follows:
+\begin{enumerate}
+    \item \textbf{S\_IDLE:} The module waits for a \texttt{start} signal to begin computation.
+    \item \textbf{S\_PREPARATION:} The module validates the input and scales the operand by $2^{16}$ to ensure sufficient fractional precision.
+    \item \textbf{S\_CALCULATION:} The core computation is performed using a digit-by-digit binary square root algorithm. Over 16 iterations, the algorithm constructs the result bit-by-bit.
+    \item \textbf{S\_NORM:} The fixed-point output is converted to BFloat16 format. A Count Leading Zeros (CLZ) function is used to derive the exponent, calculated as $134 - \text{clz\_val}$. The mantissa is then normalized.
+    \item \textbf{S\_DONE:} The module signals the availability of the result via the \texttt{done} flag.
+\end{enumerate}
+
+\noindent The module also includes error handling to ensure that invalid inputs, such as negative numbers, are flagged appropriately.
 
 % Subsection for Cosine
 \subsection{Cosine}
@@ -105,6 +198,143 @@ Arctangent was more challenging. When implementing CORDIC we provided both rotat
 \end{itemize}
 
 CORDIC requires $|y| \leq |x|$ when computing $\arctan(y/x)$, and it takes $x$ and $y$ as inputs. To meet the Q2.14 range limits, we set $x = 1$ and $y = 1/a$ (so the CORDIC computes $\arctan(1/a)$). Using the identities above allows computing $\arctan(a)$ for large $|a|$, and we finally convert the result to BF16 for output.
+
+
+
+\subsection{Logarithm}
+\label{subsec:logarithm}
+
+The \texttt{log} module is designed to compute the logarithm of an input $b$ with respect to a base $a$ ($\log_a(b)$). It outputs the final result in BFloat16 (BF16) format. The module implements the mathematical change-of-base formula:
+\[
+\log_a(b) = \frac{\ln(b)}{\ln(a)}
+\]
+To achieve this without complex IP cores, it utilizes a sequential architecture that repurposes a single CORDIC core to calculate both natural logarithms ($\ln(b)$ and $\ln(a)$) before performing a fixed-point division (Reference: \url{https://docs.amd.com/r/en-US/ug958-vivado-sysgen-ref/CORDIC-LOG}).
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:log_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Logarithm Module Interface}
+\label{tab:log_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input representing the base. \\ \hline
+\texttt{b}           & Input              & 16             & Signed integer input representing the value. \\ \hline
+\texttt{result}      & Output             & 16             & The computed logarithm in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation (e.g., invalid inputs). \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{log} module operates through a sequential finite state machine. The stages are described as follows:
+\begin{enumerate}
+    \item \textbf{Input Validation (S\_VALIDATE):} Ensures inputs are mathematically valid by rejecting non-positive values or a base of one.
+    \item \textbf{Normalization (S\_PREP\_B, S\_PREP\_BASE):} Scales the inputs using a count-leading-zeros (CLZ) function and applies logarithmic identities to satisfy the convergence domain of the algorithm.
+    \item \textbf{Hyperbolic CORDIC Computation (S\_CALC\_B, S\_CALC\_BASE):} Reuses a single logic core to calculate $\ln(b)$ and $\ln(a)$ over 16 iterations, explicitly repeating iterations 4 and 13 to guarantee convergence.
+    \item \textbf{Bit-Serial Division (S\_DIV\_PREP, S\_DIV\_CALC):} Executes a 32-cycle restoring division algorithm to compute the final logarithm $\frac{\ln(b)}{\ln(a)}$.
+    \item \textbf{Output Formatting (S\_CONVERT):} Translates the high-precision fixed-point result into BFloat16 format and asserts the \texttt{done} signal.
+\end{enumerate}
+
+\noindent The module also includes error handling to ensure that invalid inputs, such as non-positive values or a base of one, are flagged appropriately.
+
+% filepath: c:\HKUST\ELEC4320\Proj\ELEC4320-Project\report\core_module.tex
+\subsection{Exponential Operations}
+\label{subsec:exponential_operations}
+
+The \texttt{exp} module is designed to compute the exponential function $e^a$ for signed integer inputs, producing a BFloat16 (BF16) output. It utilizes a Finite State Machine (FSM) to orchestrate a hardware-efficient calculation based on the CORDIC algorithm in hyperbolic mode.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:exp_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Exponential Module Interface}
+\label{tab:exp_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input representing the exponent. \\ \hline
+\texttt{result}      & Output             & 16             & The computed exponential value in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation (e.g., overflow or invalid input). \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{exp} module performs exponential calculations through a three-phase process managed by a finite state machine. The phases are described as follows:
+\begin{enumerate}
+    \item \textbf{Range Reduction (S\_REDUCE\_1, S\_REDUCE\_2):} The module handles large inputs by decomposing the value $a$ into an integer $k$ and a remainder $r$ using the identity:
+    \[
+    e^a = 2^k \cdot e^r
+    \]
+    This isolates the fractional exponent $e^r$ for calculation while storing $k$ for the final exponent adjustment.
+    \item \textbf{Hyperbolic CORDIC Calculation (S\_CALC):} The module approximates $e^r$ by initializing vectors with a scaling constant and executing 16 iterations of shift-and-add operations. Iterations 4 and 13 are explicitly repeated to ensure convergence. The angle is updated using inverse hyperbolic tangent values stored in a ROM.
+    \item \textbf{Normalization and Packing (S\_CONVERT):} The module derives the raw result from the vector sum $x + y$, normalizes the mantissa using a count-leading-zeros (CLZ) function, and calculates the final BFloat16 exponent by adding the stored integer $k$ to the standard bias. This effectively performs the multiplication by $2^k$ while handling overflow or underflow conditions.
+\end{enumerate}
+
+\noindent The module also includes error handling to ensure that invalid inputs, such as excessively large or small values, are flagged appropriately.
+
+% filepath: c:\HKUST\ELEC4320\Proj\ELEC4320-Project\report\core_module.tex
+\subsection{Power}
+\label{subsec:power}
+
+The \texttt{pow} module is designed to calculate the power function $a^b$ for signed integer inputs, outputting the result in BFloat16 (BF16) format. Because calculating $a^b$ directly in digital logic is computationally prohibitive, this module implements the mathematical identity:
+\[
+a^b = e^{b \cdot \ln(a)}
+\]
+This approach effectively fuses a logarithm (using the CORDIC algorithm) and an exponential calculator into a single, unified pipeline.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:pow_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Power Module Interface}
+\label{tab:pow_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input representing the base. \\ \hline
+\texttt{b}           & Input              & 16             & Signed integer input representing the exponent. \\ \hline
+\texttt{result}      & Output             & 16             & The computed power value in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation (e.g., invalid inputs). \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{pow} module operates through a sophisticated five-phase Finite State Machine (FSM) to compute powers using the logarithmic identity $a^b = e^{b \ln a}$. The phases are described as follows:
+\begin{enumerate}
+    \item \textbf{Input Validation (S\_VALIDATE):} Handles edge cases, such as returning 1 when the exponent is 0 or erroring on invalid negative bases. The result's sign is determined based on the exponent's parity.
+    \item \textbf{Logarithm Calculation:} Normalizes the base using a count-leading-zeros (CLZ) function and employs a hyperbolic CORDIC algorithm over 16 iterations to compute $\ln |a|$.
+    \item \textbf{Multiplication (S\_MULT\_1, S\_MULT\_2):} Calculates the intermediate exponent $P = b \cdot \ln a$. This operation is split into two states to provide a clean timing path for the DSP blocks.
+    \item \textbf{Exponential Calculation:} Utilizes range reduction to decompose $P$ into an integer $k$ and remainder $r$, allowing:
+    \[
+    e^P = e^r \cdot 2^k
+    \]
+    The module reuses the CORDIC logic in rotation mode to compute $e^r$.
+    \item \textbf{Normalization and Packing (S\_CONVERT):} Constructs the BF16 output by normalizing the mantissa, adjusting the biased exponent by the integer $k$, and handling overflows by setting the result to infinity.
+\end{enumerate}
+
+\noindent The module also includes error handling to ensure that invalid inputs, such as negative bases with non-integer exponents, are flagged appropriately.
+
+
+
+
+
+
 
 % Subsection for Factorial
 \subsection{Factorial}
