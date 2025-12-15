@@ -9,17 +9,20 @@
 //     .done(tan_done)
 // );
 
-
 //具体要求：
 //输入：整数角度，范围[-999,999]度，但不检查输入范围
 //输出：BF16格式的正切值
-//先将输入的角度映射到[-pi/2,pi/2]的范围，确保tan值和映射之前一致
+
+//先将输入的角度等价到[-pi/2,pi/2]的范围，确保tan值和变换之前一致
 //然后考虑如果输入是90度或-90度时，输出error
 //使用11次迭代的CORDIC算法，内部采用Q2.14格式表示角度和结果
 //CORDIC模式选择为0，然后同时获取sin和cos，
 //然后分别把sin和cos换算成BF16，然后才进行除法得到tan
 //最后tan的结果要保持BF16格式
-//需要运行在300Mhz，可以调用DSP，但是不可以用IP和直接用LUT
+
+//不可以用LUT和IP
+//需要运行在300Mhz的情况
+//module里用英文注释
 
 `timescale 1ns / 1ps
 `include "define.vh"
@@ -47,134 +50,115 @@ module tan (
     reg start_sin_bf16;
     reg start_cos_bf16;
     reg start_bf16_div;
+    reg deg_to_rad_kick;  // one-cycle start gate
 
-    // 优化的角度缩减寄存器
-    reg signed [15:0] reduced_deg_reg;      // |angle|<=90
-    reg result_sign_reg;                    // Final sign of tan result
-    reg [15:0] abs_a;                       // |a|
-    
-    // 优化：分阶段的角度缩减流水线
-    reg [15:0] phase1_reduced;  // 第一阶段缩减结果 [-360,360]
-    reg [15:0] phase2_reduced;  // 第二阶段缩减结果 [-180,180]
-    reg phase1_valid, phase2_valid;
-    
-    // 优化：增加流水线寄存器
+    // Reduced angle register (in [-90,90])
+    reg signed [15:0] reduced_deg_reg;
+
+    // Pipeline registers
     reg signed [15:0] angle_q14_reg;
     reg signed [15:0] sin_q14_reg, cos_q14_reg;
     reg [15:0] sin_bf16_reg, cos_bf16_reg;
-    
-    // State machine - 扩展状态以支持流水线
-    reg [4:0] state;
-    localparam IDLE        = 5'd0;
-    localparam REDUCE_P1   = 5'd1;  // 第一阶段角度缩减
-    localparam REDUCE_P2   = 5'd2;  // 第二阶段角度缩减
-    localparam REDUCE_FIN  = 5'd3;  // 角度缩减完成检查
-    localparam DEG_TO_RAD  = 5'd4;
-    localparam CORDIC      = 5'd5;
-    localparam CONV_SIN    = 5'd6;
-    localparam CONV_COS    = 5'd7;
-    localparam BF16_DIV    = 5'd8;
-    localparam OUTPUT      = 5'd9;
 
-    // cos ≈ 0 判定阈值（Q2.14）
-    localparam signed [15:0] COS_MIN = 16'sd16; // ~0.001 in Q2.14
+    // BF16 conversion ready flags
+    reg sin_bf16_ready, cos_bf16_ready;
 
-    // 优化的绝对值函数 - 减少关键路径
-    function [15:0] fast_abs16;
-        input signed [15:0] v;
-        begin
-            fast_abs16 = v[15] ? (~v + 1'b1) : v;
-        end
-    endfunction
+    // FSM states
+    reg [3:0] state;
+    localparam IDLE        = 4'd0;
+    localparam REDUCE      = 4'd1;
+    localparam CHECK_90    = 4'd2;
+    localparam DEG_TO_RAD  = 4'd3;
+    localparam CORDIC      = 4'd4;
+    localparam CONV_START  = 4'd5;
+    localparam CONV_SIN    = 4'd6;
+    localparam BF16_DIV    = 4'd7;
+    localparam OUTPUT      = 4'd8;
 
-    // 优化：流水线式角度缩减函数 - 第一阶段：缩减到[-360,360]
-    function [15:0] reduce_phase1;
+    // ============================================================================
+    // Angle reduction function: map any degree to [-90, 90] (synthesizable)
+    // ============================================================================
+    function automatic signed [15:0] reduce_to_90;
         input signed [15:0] deg;
-        reg signed [15:0] temp;
+        reg signed [15:0] t;
         begin
-            temp = deg;
-            // 使用循环展开的减法，避免取模运算
-            if (temp > 360) begin
-                if (temp > 720) temp = temp - 720;
-                if (temp > 360) temp = temp - 360;
-            end else if (temp < -360) begin
-                if (temp < -720) temp = temp + 720;
-                if (temp < -360) temp = temp + 360;
-            end
-            reduce_phase1 = temp;
+            // Mod 180 to [0,180)
+            t = deg + 16'sd3600; // add multiple of 180 to ensure positive
+            t = t % 16'sd180;
+            if (t < 0) t = t + 16'sd180;
+            // Map to [-90,90]
+            if (t > 16'sd90)
+                reduce_to_90 = t - 16'sd180;
+            else
+                reduce_to_90 = t;
         end
     endfunction
 
-    // 优化：流水线式角度缩减函数 - 第二阶段：缩减到[-180,180]
-    function [15:0] reduce_phase2;
-        input signed [15:0] deg;
-        reg signed [15:0] temp;
-        begin
-            temp = deg;
-            if (temp > 180) temp = temp - 360;
-            else if (temp < -180) temp = temp + 360;
-            reduce_phase2 = temp;
-        end
-    endfunction
+    // ============================================================================
+    // Submodules
+    // ============================================================================
 
-    // 角度转换
+    // Degree to rad (Q2.14)
     deg_to_rad u_deg_to_rad (
         .clk(clk),
         .rst(rst),
         .start(start_deg_to_rad),
         .angle_deg(reduced_deg_reg),
         .angle_q14(angle_q14),
-        .angle_valid(),
+        .angle_valid(),          // unused
         .error(deg_to_rad_error),
         .done(deg_to_rad_done)
     );
 
-    // CORDIC 求 sin/cos
+    // CORDIC core: mode 0, outputs sin/cos in Q2.14
     cordic_core #(.MODE(0)) u_cordic (
         .clk(clk),
         .rst(rst),
         .start(start_cordic),
         .angle_q14(angle_q14_reg),
-        .result_q14(sin_q14),
-        .secondary_q14(cos_q14),
-        .cordic_valid(),
+        .result_q14(sin_q14),     // sin
+        .secondary_q14(cos_q14),  // cos
+        .cordic_valid(),          // unused
         .done(cordic_done)
     );
 
-    // Q2.14 -> BF16
+    // Q2.14 to BF16: sin
     Q14_to_BF16 u_sin_bf16 (
         .clk(clk),
         .rst(rst),
         .start(start_sin_bf16),
         .q14_value(sin_q14_reg),
         .float_result(sin_bf16),
-        .convert_valid(),
+        .convert_valid(),        // unused
         .done(sin_bf16_done)
     );
 
+    // Q2.14 to BF16: cos
     Q14_to_BF16 u_cos_bf16 (
         .clk(clk),
         .rst(rst),
         .start(start_cos_bf16),
         .q14_value(cos_q14_reg),
         .float_result(cos_bf16),
-        .convert_valid(),
+        .convert_valid(),        // unused
         .done(cos_bf16_done)
     );
 
-    // BF16 除法 - 需要确保该模块本身能运行在300MHz
+    // BF16 divider: tan = sin / cos
     bf16_divider u_bf16_div (
         .clk(clk),
         .rst(rst),
         .start(start_bf16_div),
-        .a({result_sign_reg, sin_bf16_reg[14:0]}), // 直接带符号处理
-        .b(cos_bf16_reg),
+        .a(sin_bf16_reg),        // numerator: sin
+        .b(cos_bf16_reg),        // denominator: cos
         .result(tan_bf16),
         .error(bf16_div_error),
         .done(bf16_div_done)
     );
 
-    // FSM - 优化后的流水线状态机
+    // ============================================================================
+    // Main FSM
+    // ============================================================================
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             state            <= IDLE;
@@ -183,104 +167,83 @@ module tan (
             start_sin_bf16   <= 0;
             start_cos_bf16   <= 0;
             start_bf16_div   <= 0;
+            deg_to_rad_kick  <= 0;
             result           <= 0;
             error            <= 0;
             done             <= 0;
-            result_sign_reg  <= 0;
             reduced_deg_reg  <= 0;
-            abs_a            <= 0;
-            phase1_reduced   <= 0;
-            phase2_reduced   <= 0;
-            phase1_valid     <= 0;
-            phase2_valid     <= 0;
             angle_q14_reg    <= 0;
             sin_q14_reg      <= 0;
             cos_q14_reg      <= 0;
             sin_bf16_reg     <= 0;
             cos_bf16_reg     <= 0;
+            sin_bf16_ready   <= 0;
+            cos_bf16_ready   <= 0;
         end else begin
-            // Default control signals
+            // default deassertions (one-cycle pulses)
             start_deg_to_rad <= 0;
             start_cordic     <= 0;
             start_sin_bf16   <= 0;
             start_cos_bf16   <= 0;
             start_bf16_div   <= 0;
             done             <= 0;
-            
-            // 流水线寄存器更新
+
+            // pipeline latching
             if (deg_to_rad_done) begin
                 angle_q14_reg <= angle_q14;
             end
-            
             if (cordic_done) begin
                 sin_q14_reg <= sin_q14;
                 cos_q14_reg <= cos_q14;
             end
-            
             if (sin_bf16_done) begin
-                sin_bf16_reg <= sin_bf16;
+                sin_bf16_reg   <= sin_bf16;
+                sin_bf16_ready <= 1;
             end
-            
             if (cos_bf16_done) begin
-                cos_bf16_reg <= cos_bf16;
+                cos_bf16_reg   <= cos_bf16;
+                cos_bf16_ready <= 1;
             end
 
             case (state)
                 IDLE: begin
-                    error <= 0;
-                    if (start) begin
-                        abs_a <= fast_abs16(a);
-                        result_sign_reg <= a[15]; // 保存符号
-                        state <= REDUCE_P1;
-                    end
+                    error           <= 0;
+                    deg_to_rad_kick <= 0;
+                    sin_bf16_ready  <= 0;
+                    cos_bf16_ready  <= 0;
+                    result          <= 0;
+                    if (start) state <= REDUCE;
                 end
 
-                REDUCE_P1: begin
-                    // 第一阶段角度缩减（1周期）
-                    phase1_reduced <= reduce_phase1(a);
-                    state <= REDUCE_P2;
+                REDUCE: begin
+                    reduced_deg_reg <= reduce_to_90(a);
+                    state <= CHECK_90;
                 end
 
-                REDUCE_P2: begin
-                    // 第二阶段角度缩减（1周期）
-                    phase2_reduced <= reduce_phase2(phase1_reduced);
-                    state <= REDUCE_FIN;
-                end
-
-                REDUCE_FIN: begin
-                    // 检查是否为90度或-90度
-                    if (phase2_reduced == 16'sd90 || phase2_reduced == -16'sd90) begin
+                CHECK_90: begin
+                    if (reduced_deg_reg == 16'sd90 || reduced_deg_reg == -16'sd90) begin
                         error  <= 1;
                         result <= 16'hFFC0; // BF16 NaN
                         done   <= 1;
                         state  <= IDLE;
                     end else begin
-                        // 调整到[-90,90]范围
-                        if (phase2_reduced > 16'sd90) begin
-                            reduced_deg_reg <= phase2_reduced - 16'sd180;
-                            result_sign_reg <= ~result_sign_reg; // 符号翻转
-                        end else if (phase2_reduced < -16'sd90) begin
-                            reduced_deg_reg <= phase2_reduced + 16'sd180;
-                            result_sign_reg <= ~result_sign_reg; // 符号翻转
-                        end else begin
-                            reduced_deg_reg <= fast_abs16(phase2_reduced);
-                            // 符号已经由result_sign_reg保存
-                        end
-                        
-                        start_deg_to_rad <= 1;
+                        deg_to_rad_kick <= 1'b1;
                         state <= DEG_TO_RAD;
                     end
                 end
 
                 DEG_TO_RAD: begin
+                    if (deg_to_rad_kick) begin
+                        start_deg_to_rad <= 1;
+                        deg_to_rad_kick  <= 0;
+                    end
                     if (deg_to_rad_done) begin
                         if (deg_to_rad_error) begin
                             error  <= 1;
-                            result <= 16'hFFC0;
+                            result <= 16'hFFC0; // BF16 NaN
                             done   <= 1;
                             state  <= IDLE;
                         end else begin
-                            // 启动CORDIC，同时存储角度值到流水线寄存器
                             start_cordic <= 1;
                             state <= CORDIC;
                         end
@@ -289,22 +252,23 @@ module tan (
 
                 CORDIC: begin
                     if (cordic_done) begin
-                        if (fast_abs16(cos_q14) <= COS_MIN) begin
-                            error  <= 1;
-                            result <= 16'hFFC0;
-                            state  <= OUTPUT;
-                        end else begin
-                            // 并行启动sin和cos的BF16转换
-                            start_sin_bf16 <= 1;
-                            start_cos_bf16 <= 1;
-                            state <= CONV_SIN;
-                        end
+                        state <= CONV_START;
                     end
                 end
 
+                // Start BF16 conversions one cycle after cordic outputs are latched
+                CONV_START: begin
+                    sin_bf16_ready <= 0;
+                    cos_bf16_ready <= 0;
+                    start_sin_bf16 <= 1;
+                    start_cos_bf16 <= 1;
+                    state <= CONV_SIN;
+                end
+
                 CONV_SIN: begin
-                    // 等待sin转换完成，cos转换会并行进行
-                    if (sin_bf16_done && cos_bf16_done) begin
+                    if (sin_bf16_ready && cos_bf16_ready) begin
+                        sin_bf16_ready <= 0;
+                        cos_bf16_ready <= 0;
                         start_bf16_div <= 1;
                         state <= BF16_DIV;
                     end
@@ -314,7 +278,7 @@ module tan (
                     if (bf16_div_done) begin
                         if (bf16_div_error) begin
                             error  <= 1;
-                            result <= 16'hFFC0;
+                            result <= 16'hFFC0; // BF16 NaN
                         end else begin
                             result <= tan_bf16;
                         end
