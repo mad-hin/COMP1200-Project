@@ -1,5 +1,6 @@
-# ELEC4320-Project
+# COMP1200-Project
 
-## Version of the Vivado Design
+## Version of the  Design
 
-This project was developed using Vivado 2024.1
+
+This project was developed using
