@@ -84,8 +84,6 @@ module pow(
     reg [5:0]  norm_shift;
     reg signed [31:0] e_ln2;
 
-    // BF16 output register
-    reg [15:0] result_reg;
 
     reg signed [31:0] calc_exp; 
     reg signed [63:0] temp_mult;
@@ -93,6 +91,8 @@ module pow(
 
     // 7-bit mantissa for BF16
     reg [6:0] bf16_mant;
+
+    wire signed [31:0] current_input_comb = ($unsigned(abs_a) << shift_count) >> 16;
 
     // ATANH ROM (same values for CORDIC hyperbolic)
     reg signed [31:0] atanh_val;
@@ -141,6 +141,24 @@ module pow(
             done <= 0;
             i <= 1;
             x <= 0; y <= 0; z <= 0;
+            abs_a <= 0;
+            result_is_neg <= 0;
+            ln_a_val <= 0;
+            b_extended <= 0;
+            mult_op_a <= 0;
+            mult_op_b <= 0;
+            mult_result <= 0;
+            k_integer <= 0;
+            current_input <= 0;
+            shift_count <= 0;
+            abs_final <= 0;
+            norm_shift <= 0;
+            e_ln2 <= 0;
+            calc_exp <= 0;
+            temp_mult <= 0;
+            temp_kln2 <= 0;
+            repeat_done <= 0;
+            bf16_mant <= 0;
         end else begin
             case (state)
                 S_IDLE: begin
@@ -156,11 +174,11 @@ module pow(
                             error<=1; 
                             state<=S_DONE;
                         end else begin
-                            result_reg<=0; 
+                            result<=0; 
                             state<=S_DONE;
                         end
                     end else if (b == 0) begin
-                            result_reg<=16'h3f80; 
+                            result<=16'h3f80; 
                             state<=S_DONE;
                         end else if (a[15]) begin
                             result_is_neg<=b[0]; 
@@ -183,10 +201,12 @@ module pow(
                     state<=S_PREP_LN_SHIFT;
                 end
 
+
+                
                 S_PREP_LN_SHIFT: begin
-                    current_input = ($unsigned(abs_a) << shift_count) >> 16;
-                    x <= current_input + 32'h0001_0000;
-                    y <= current_input - 32'h0001_0000;
+                    // current_input= ($unsigned(abs_a) << shift_count) >> 16;
+                    x <= current_input_comb + 32'h0001_0000;
+                    y <= current_input_comb - 32'h0001_0000;
                     z <= (32 - shift_count) * LN2_FIXED;
                     i <= 1; 
                     repeat_done <= 0; 
@@ -315,7 +335,7 @@ module pow(
 
                 S_CONVERT_SHIFT: begin
                     if (abs_final == 0) begin
-                        result_reg = 0;
+                        result<= 0;
                         state <= S_CONVERT_PACK;
                     end else begin
                         norm_shift <= clz(abs_final);
@@ -325,20 +345,20 @@ module pow(
 
                 S_CONVERT_PACK: begin
                     if (abs_final == 0) begin
-                        result_reg = 0;
+                        result <= 0;
                     end else begin
                         // BF16 Exponent: bias(127) + internal_offset - norm_shift + k
                         calc_exp = 142 - norm_shift + k_integer;
 
                         if (calc_exp >= 255) begin
                             error <= 1;
-                            result_reg = {result_is_neg, 8'hFF, 7'h0};  // BF16 ±Inf
+                            result <= {result_is_neg, 8'hFF, 7'h0};  // BF16 ±Inf
                         end else if (calc_exp <= 0) begin
-                            result_reg = 0;  // Underflow to zero
+                            result <= 0;  // Underflow to zero
                         end else begin
                             // Extract 7-bit mantissa for BF16 (shift by 24 instead of 8)
                             bf16_mant = (abs_final << norm_shift) >> 24;
-                            result_reg = {result_is_neg, calc_exp[7:0], bf16_mant};
+                            result <= {result_is_neg, calc_exp[7:0], bf16_mant};
                         end
                     end
                     state <= S_DONE;
@@ -346,7 +366,6 @@ module pow(
 
                 S_DONE: begin
                     done <= 1;
-                    result <= result_reg;
                     if (!start) state <= S_IDLE;
                 end
             endcase

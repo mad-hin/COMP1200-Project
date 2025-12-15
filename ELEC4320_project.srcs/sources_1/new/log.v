@@ -48,7 +48,7 @@ module log (
 
     // Internal Signals
     reg signed [31:0] x, y, z;
-    reg signed [31:0] x_next, y_next, z_next;
+    // reg signed [31:0] x_next, y_next, z_next;
     reg [4:0] i; 
     reg repeat_done; 
     
@@ -56,8 +56,8 @@ module log (
     reg signed [31:0] ln_base_val;
     reg signed [31:0] final_fixed; 
     
-    reg signed [31:0] current_input;
-    reg [5:0] shift_count; 
+    // Store input values on start
+    reg signed [`INPUTOUTBIT-1:0] a_reg, b_reg;
 
     // Division Signals
     reg [63:0] div_rem;   
@@ -67,6 +67,41 @@ module log (
 
     reg signed [31:0] atanh_val;
     
+    // Combinational: shift_count and current_input
+    wire [5:0] shift_count_b;
+    wire [5:0] shift_count_a;
+    wire signed [31:0] current_input_b;
+    wire signed [31:0] current_input_a;
+    wire signed [31:0] e_ln2_b;
+    wire signed [31:0] e_ln2_a;
+    
+    assign shift_count_b = clz(b_reg);
+    assign shift_count_a = clz(a_reg);
+    assign current_input_b = ($unsigned(b_reg) << shift_count_b) >> 16;
+    assign current_input_a = ($unsigned(a_reg) << shift_count_a) >> 16;
+    assign e_ln2_b = (32 - shift_count_b) * ln2_fixed_point;
+    assign e_ln2_a = (32 - shift_count_a) * ln2_fixed_point;
+    
+    // Combinational: BF16 conversion
+    wire [31:0] abs_final_w;
+    wire [5:0]  norm_shift_w;
+    wire [7:0]  bf16_exp_w;
+    wire [6:0]  bf16_mant_w;
+    wire [15:0] bf16_out_w;
+    
+    assign abs_final_w = final_fixed[31] ? -final_fixed : final_fixed;
+    assign norm_shift_w = clz(abs_final_w);
+    assign bf16_exp_w = 8'd127 + (8'd31 - {2'b0, norm_shift_w}) - 8'd15;
+    assign bf16_mant_w = (abs_final_w << norm_shift_w) >> 24;
+    assign bf16_out_w = (abs_final_w == 0) ? 16'b0 : {final_fixed[31], bf16_exp_w, bf16_mant_w};
+
+    // Combinational: Division step
+    wire [63:0] rem_shift_w;
+    wire [32:0] sub_res_w;
+    
+    assign rem_shift_w = div_rem << 1;
+    assign sub_res_w = rem_shift_w[63:32] - {1'b0, div_denom};
+
     // Explicit ROM
     always @(*) begin
         case(i)
@@ -105,18 +140,8 @@ module log (
         end
     endfunction
 
-    // IEEE Signals
-    reg [15:0] bf16_out;
-    reg [7:0]  bf16_exp;
-    reg [6:0]  bf16_mant;
-    reg [31:0] abs_final;
-    reg [5:0]  norm_shift;
-
-    reg signed [31:0] e_ln2;
-    reg [63:0] rem_shift;
-    reg [32:0] sub_res; 
-
     always @(posedge clk or posedge rst) begin
+        
         if (rst) begin
             state <= S_IDLE;
             result <= 0;
@@ -124,17 +149,36 @@ module log (
             done <= 0;
             i <= 1;
             repeat_done <= 0;
-            x <= 0; y <= 0; z <= 0;
+            x <= 0; 
+            y <= 0; 
+            z <= 0;
+            // x_next <= 0;
+            // y_next <= 0;
+            // z_next <= 0;
+            ln_b_val <= 0;
+            ln_base_val <= 0;
+            final_fixed <= 0;
+            a_reg <= 0;
+            b_reg <= 0;
+            div_rem <= 0;
+            div_quo <= 0;
+            div_denom <= 0;
+            div_cnt <= 0;
         end else begin
             case (state)
                 S_IDLE: begin
                     done <= 0;
                     error <= 0;
-                    if (start) state <= S_VALIDATE;
+                    if (start) begin
+                        // Capture inputs on start
+                        a_reg <= a;
+                        b_reg <= b;
+                        state <= S_VALIDATE;
+                    end
                 end
 
                 S_VALIDATE: begin
-                    if (b <= 0 || a <= 0 || a == 1) begin
+                    if (b_reg <= 0 || a_reg <= 0 || a_reg == 1) begin
                         error <= 1;
                         state <= S_DONE;
                     end else begin
@@ -144,11 +188,9 @@ module log (
 
                 // Normalize B
                 S_PREP_B: begin
-                    shift_count = clz(b); 
-                    current_input = ($unsigned(b) << shift_count) >> 16; 
-                    x <= current_input + 32'h0001_0000;
-                    y <= current_input - 32'h0001_0000;
-                    z <= (32 - shift_count) * ln2_fixed_point;
+                    x <= current_input_b + 32'h0001_0000;
+                    y <= current_input_b - 32'h0001_0000;
+                    z <= (32 - shift_count_b) * ln2_fixed_point;
                     i <= 1;
                     repeat_done <= 0;
                     state <= S_CALC_B;
@@ -156,18 +198,19 @@ module log (
 
                 // CORDIC Core
                 S_CALC_B, S_CALC_BASE: begin
-                    if ((y[31] == 0)) begin 
-                        x_next = x - (y >>> i);
-                        y_next = y - (x >>> i);
-                        z_next = z + atanh_val; 
-                    end else begin 
-                        x_next = x + (y >>> i);
-                        y_next = y + (x >>> i);
-                        z_next = z - atanh_val;
-                    end
-                    x <= x_next; y <= y_next; z <= z_next;
-
                     if (i <= ITERATIONS) begin
+                        // Directly update x, y, z
+                        if (y[31] == 0) begin 
+                            x <= x - (y >>> i);
+                            y <= y - (x >>> i);
+                            z <= z + atanh_val; 
+                        end else begin 
+                            x <= x + (y >>> i);
+                            y <= y + (x >>> i);
+                            z <= z - atanh_val;
+                        end
+                        
+                        // Handle iteration counter with repeat for i=4 and i=13
                         if ((i == 4 || i == 13) && repeat_done == 0) begin
                             repeat_done <= 1; 
                         end else begin
@@ -175,29 +218,25 @@ module log (
                             repeat_done <= 0; 
                         end
                     end else begin
-                        if (state == S_CALC_B) e_ln2 = (32 - clz(b))*ln2_fixed_point;
-                        else e_ln2 = (32 - clz(a))*ln2_fixed_point;
-
+                        // CORDIC complete, save result and move to next state
                         if (state == S_CALC_B) begin
-                             ln_b_val <= (z <<< 1) - e_ln2; 
-                             state <= S_PREP_BASE;
+                            ln_b_val <= (z <<< 1) - e_ln2_b; 
+                            state <= S_PREP_BASE;
                         end else begin
-                             ln_base_val <= (z <<< 1) - e_ln2;
-                             state <= S_DIV_PREP;
+                            ln_base_val <= (z <<< 1) - e_ln2_a;
+                            state <= S_DIV_PREP;
                         end
                     end
                 end
 
                 // Normalize Base
                 S_PREP_BASE: begin
-                     shift_count = clz(a);
-                     current_input = ($unsigned(a) << shift_count) >> 16;
-                     x <= current_input + 32'h0001_0000; 
-                     y <= current_input - 32'h0001_0000; 
-                     z <= (32 - shift_count) * ln2_fixed_point; 
-                     i <= 1;
-                     repeat_done <= 0;
-                     state <= S_CALC_BASE;
+                    x <= current_input_a + 32'h0001_0000; 
+                    y <= current_input_a - 32'h0001_0000; 
+                    z <= (32 - shift_count_a) * ln2_fixed_point; 
+                    i <= 1;
+                    repeat_done <= 0;
+                    state <= S_CALC_BASE;
                 end
 
                 // Division - Step 1
@@ -206,27 +245,22 @@ module log (
                         final_fixed <= 32'h7FFF_FFFF;
                         state <= S_CONVERT;
                     end else begin
-                        // FIX: Shift by 15 instead of 16 to correct the factor of 2 error
-                        div_rem = {32'b0, ln_b_val} << 15; 
-                        div_denom = ln_base_val;
-                        div_quo = 0;
-                        div_cnt = 32; 
+                        div_rem <= {32'b0, ln_b_val} << 15; 
+                        div_denom <= ln_base_val;
+                        div_quo <= 0;
+                        div_cnt <= 32; 
                         state <= S_DIV_CALC;
                     end
                 end
 
                 // Division - Step 2 (Bit Serial)
                 S_DIV_CALC: begin
-                    
-                    rem_shift = div_rem << 1;
-                    sub_res = rem_shift[63:32] - {1'b0, div_denom};
-                    
-                    if (sub_res[32] == 0) begin // Positive
-                        div_rem = {sub_res[31:0], rem_shift[31:0]};
-                        div_quo = (div_quo << 1) | 1'b1;
+                    if (sub_res_w[32] == 0) begin // Positive
+                        div_rem <= {sub_res_w[31:0], rem_shift_w[31:0]};
+                        div_quo <= (div_quo << 1) | 1'b1;
                     end else begin // Negative
-                        div_rem = rem_shift;
-                        div_quo = (div_quo << 1) | 1'b0;
+                        div_rem <= rem_shift_w;
+                        div_quo <= (div_quo << 1) | 1'b0;
                     end
                     
                     if (div_cnt == 0) begin
@@ -239,23 +273,7 @@ module log (
 
                 // BF16 Conversion
                 S_CONVERT: begin
-                    bf16_out[15] = final_fixed[31];  // Sign bit
-                    abs_final = final_fixed[31] ? -final_fixed : final_fixed;
-                    
-                    if (abs_final == 0) begin
-                        bf16_out = 16'b0;
-                    end else begin
-                        norm_shift = clz(abs_final);
-                        // BF16: exponent bias is 127
-                        // For 16-bit input range, adjust exponent calculation
-                        bf16_exp = 8'd127 + (8'd31 - {2'b0, norm_shift}) - 8'd16;
-                        // BF16 mantissa: 7 bits (truncate from 32-bit)
-                        bf16_mant = (abs_final << norm_shift) >> 24;  // Drop 24 bits to get 7-bit mantissa
-                        
-                        bf16_out[14:7] = bf16_exp;
-                        bf16_out[6:0]  = bf16_mant;
-                    end
-                    result <= bf16_out;
+                    result <= bf16_out_w;
                     state <= S_DONE;
                 end
 
@@ -263,6 +281,8 @@ module log (
                     done <= 1;
                     if (!start) state <= S_IDLE;
                 end
+                
+                default: state <= S_IDLE;
             endcase
         end
     end

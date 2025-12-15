@@ -102,50 +102,50 @@ module cal_tb();
         // =====================================================
         // Test 1: Addition (5 + 3 = 8)
         // =====================================================
-        $display("\n=== Test 1: Addition 5 + 3 ===");
-        system_reset();
-        sw = `OP_ADD;
-        #1000000;
+//        $display("\n=== Test 1: Addition 5 + 3 ===");
+//        system_reset();
+//        sw = `OP_ADD;
+//        #1000000;
         
-        simulate_input(5);
-        #5000000;
-        simulate_input(3);
+//        simulate_input(5);
+//        #5000000;
+//        simulate_input(3);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x4100 = 8.0)", alu_result);
+//        wait(cal_done);
+//        #100000;
+//        $display("Result: 0x%04h (Expected: 0x4100 = 8.0)", alu_result);
         
         // =====================================================
         // Test 2: Addition (-100 + 200 = 100)
         // =====================================================
-        $display("\n=== Test 2: Addition -100 + 200 ===");
-        system_reset();
-        sw = `OP_ADD;
-        #1000000;
+//        $display("\n=== Test 2: Addition -100 + 200 ===");
+//        system_reset();
+//        sw = `OP_ADD;
+//        #1000000;
         
-        simulate_input(-100);
-        #5000000;
-        simulate_input(200);
+//        simulate_input(-100);
+//        #5000000;
+//        simulate_input(200);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0x42C8 = 100.0)", alu_result);
+//        wait(cal_done);
+//        #100000;
+//        $display("Result: 0x%04h (Expected: 0x42C8 = 100.0)", alu_result);
         
         // =====================================================
         // Test 3: Addition (-50 + -30 = -80)
-        // =====================================================
-        $display("\n=== Test 3: Addition -50 + -30 ===");
-        system_reset();
-        sw = `OP_ADD;
-        #1000000;
+//        // =====================================================
+//        $display("\n=== Test 3: Addition -50 + -30 ===");
+//        system_reset();
+//        sw = `OP_ADD;
+//        #1000000;
         
-        simulate_input(-50);
-        #5000000;
-        simulate_input(-30);
+//        simulate_input(-50);
+//        #5000000;
+//        simulate_input(-30);
         
-        wait(cal_done);
-        #100000;
-        $display("Result: 0x%04h (Expected: 0xC2A0 = -80.0)", alu_result);
+//        wait(cal_done);
+//        #100000;
+//        $display("Result: 0x%04h (Expected: 0xC2A0 = -80.0)", alu_result);
         
         // =====================================================
         // Test 4: Subtraction (10 - 4 = 6)
@@ -326,18 +326,18 @@ module cal_tb();
         // =====================================================
         // Test 15: Power (2^3 = 8)
         // =====================================================
-        // $display("\n=== Test 15: Power 2^3 ===");
-        // system_reset();
-        // sw = `OP_POW;
-        // #1000000;
+         $display("\n=== Test 15: Power 2^3 ===");
+         system_reset();
+         sw = `OP_POW;
+         #1000000;
         
-        // simulate_input(2);
-        // #5000000;
-        // simulate_input(3);
+         simulate_input(2);
+         #5000000;
+         simulate_input(3);
         
-        // wait(cal_done);
-        // #100000;
-        // $display("Result: 0x%04h (Expected: 0x4100 = 8.0)", alu_result);
+         wait(cal_done);
+         #100000;
+         $display("Result: 0x%04h (Expected: 0x4100 = 8.0)", alu_result);
         
         // =====================================================
         // Test 16: Power (99^0 = 1)
