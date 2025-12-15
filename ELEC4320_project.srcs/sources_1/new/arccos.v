@@ -15,6 +15,9 @@
 //用if-else实现
 //如果是其他情况直接error就可以了
 
+`timescale 1ns / 1ps
+`include "define.vh"
+
 module arccos (
     input  wire clk,
     input  wire rst,
