@@ -61,7 +61,7 @@ module cordic_core #(
                     x_pipe[i+1] <= 0; y_pipe[i+1] <= 0; z_pipe[i+1] <= 0;
                 end else begin
                     case (MODE)
-                        0: begin // rotation mode for SIN
+                        0: begin // rotation mode for SIN/COS
                             if (z_pipe[i][15]) begin
                                 x_pipe[i+1] <= x_pipe[i] + (y_pipe[i] >>> i);
                                 y_pipe[i+1] <= y_pipe[i] - (x_pipe[i] >>> i);
