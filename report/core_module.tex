@@ -2,33 +2,224 @@
 \section{Detailed Module Design}
 \label{sec:detailed_module_design}
 
+
 % Subsection for Input/Output Controller
 \subsection{Input/Output Controller}
 \label{subsec:io_controller}
-% Describe the functionality of the module here
-% Include a block diagram and pin description
-% Add a flowchart to explain the internal logic
+
+The \texttt{input\_output\_controller} module is responsible for managing user inputs and displaying the corresponding outputs on a 7-segment display. It processes raw button inputs, debounces them, detects rising edges, and converts the input values into a format suitable for further processing. The module also handles the display of the current input value on the 7-segment display.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:io_controller_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Input/Output Controller Interface}
+\label{tab:io_controller_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{btn\_left}    & Input              & 1              & Raw button input for left navigation. \\ \hline
+\texttt{btn\_right}   & Input              & 1              & Raw button input for right navigation. \\ \hline
+\texttt{btn\_up}      & Input              & 1              & Raw button input for incrementing the value. \\ \hline
+\texttt{btn\_down}    & Input              & 1              & Raw button input for decrementing the value. \\ \hline
+\texttt{btn\_mid}     & Input              & 1              & Raw button input for confirming the input. \\ \hline
+\texttt{reset\_input} & Input              & 1              & Signal to reset the input controller. \\ \hline
+\texttt{seg}          & Output             & 7              & 7-segment display output. \\ \hline
+\texttt{an}           & Output             & 4              & 7-segment display anode control. \\ \hline
+\texttt{input\_val}   & Output             & \texttt{`INPUTOUTBIT} & Packed input value. \\ \hline
+\texttt{input\_done}  & Output             & 1              & Signal indicating that the input is complete. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{input\_output\_controller} module consists of the following submodules:
+\begin{itemize}
+    \item \textbf{Clock Divider:} Generates a slower clock signal (100 MHz) from the system clock (300 MHz) for use in the input controller.
+    \item \textbf{Debouncers:} Debounces the raw button inputs to ensure stable signals. Each button input is debounced using a 2 ms debounce time.
+    \item \textbf{Edge Detectors:} Detects rising edges of the debounced button signals to trigger specific actions.
+    \item \textbf{Input Controller:} Manages the user input process, including navigation between digits, incrementing/decrementing values, and confirming the input. The current input value is packed into \texttt{input\_val}.
+    \item \textbf{Output Controller:} Drives the 7-segment display to show the current input value. The display updates smoothly using the fast clock.
+\end{itemize}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{input\_output\_controller} module is illustrated in Figure~\ref{fig:io_controller_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/io_controller_flowchart.pdf}
+\caption{Flowchart of the Input/Output Controller Module}
+\label{fig:io_controller_flowchart}
+\end{figure}
+
+\noindent The module operates as follows:
+\begin{enumerate}
+    \item The clock divider generates a slower clock signal for the input controller.
+    \item Raw button inputs are debounced to ensure stable signals.
+    \item Rising edges of the debounced signals are detected to trigger specific actions.
+    \item The input controller processes the button signals to update the input value and signals when the input is complete.
+    \item The output controller drives the 7-segment display to show the current input value.
+\end{enumerate}
+
+\noindent The module ensures robust handling of user inputs and provides a clear visual representation of the input value on the 7-segment display.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 
 % Subsection for Display Controller
 \subsection{Display Controller}
 \label{subsec:display_controller}
-% Describe the functionality of the module here
-% Include a block diagram and pin description
-% Add a flowchart to explain the internal logic
+
+The \texttt{display\_controller} module is responsible for decoding and displaying the result of computations on a 7-segment display. It converts the BFloat16 (BF16) result into a human-readable decimal format, handles error signaling, and supports scrolling for long numbers.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:display_controller_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Display Controller Interface}
+\label{tab:display_controller_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{result}      & Input              & \texttt{`INPUTOUTBIT} & BF16 result to be displayed. \\ \hline
+\texttt{error}       & Input              & 1              & Error flag indicating invalid computation. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal indicating that the result is ready. \\ \hline
+\texttt{seg}         & Output             & 7              & 7-segment display output. \\ \hline
+\texttt{an}          & Output             & 4              & 7-segment display anode control. \\ \hline
+\texttt{led}         & Output             & 16             & LED indicators for debugging or status. \\ \hline
+\texttt{dp}          & Output             & 1              & Decimal point control for the 7-segment display. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{display\_controller} module operates in the following stages:
+\begin{itemize}
+    \item \textbf{BF16 Decoding:} The BF16 result is decoded into its sign, exponent, and mantissa fields. The exponent is adjusted using a bias of 127, and the mantissa is normalized to construct the fixed-point representation.
+    \item \textbf{Magnitude Calculation:} The module computes the absolute value of the result and applies the sign bit to determine the signed magnitude.
+    \item \textbf{Integer and Fraction Extraction:} The integer and fractional parts of the result are extracted. The fractional part is scaled to ensure sufficient precision for display.
+    \item \textbf{Decimal Conversion:} The integer and fractional parts are converted into decimal digits. Up to 5 integer digits and 8 fractional digits are supported.
+    \item \textbf{Symbol Construction:} The module constructs a stream of symbols, including the sign, integer digits, and fractional digits. A decimal point is inserted after the least significant integer digit if fractional digits are present.
+    \item \textbf{Windowing and Scrolling:} For long numbers, the module supports scrolling across multiple windows. Each window displays up to 4 symbols at a time, and the display scrolls automatically at a fixed interval.
+    \item \textbf{7-Segment Encoding:} The symbols are encoded into 7-segment display patterns. Special symbols such as '-' (negative sign) and 'E' (error) are also supported.
+    \item \textbf{Multiplexing:} The module uses a multiplexing scheme to drive the 7-segment display, refreshing each digit at a high frequency to ensure smooth display.
+\end{itemize}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{display\_controller} module is illustrated in Figure~\ref{fig:display_controller_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/display_controller_flowchart.pdf}
+\caption{Flowchart of the Display Controller Module}
+\label{fig:display_controller_flowchart}
+\end{figure}
+
+\noindent The module ensures accurate and user-friendly display of results, with robust handling of errors and support for long numbers through scrolling. The use of pipelined stages and multiplexing ensures efficient operation and smooth display updates.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 % Subsection for Addition
 \subsection{Addition}
 \label{subsec:addition}
-% Describe the functionality of the module here
-% Include a block diagram and pin description
-% Add a flowchart to explain the internal logic
+
+The \texttt{add} module is designed to perform signed integer addition of two 16-bit inputs and output the result in BFloat16 (BF16) format. The module ensures accurate computation and handles overflow conditions gracefully.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:add_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Addition Module Interface}
+\label{tab:add_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{b}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{result}      & Output             & 16             & The computed sum in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an overflow occurred during computation. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{add} module operates in the following stages:
+\begin{enumerate}
+    \item \textbf{Input Validation:} The module checks the validity of the inputs and ensures that the reset signal is deasserted before proceeding.
+    \item \textbf{Addition:} The signed 16-bit inputs are added using a hardware adder. The raw sum is computed, and the overflow condition is checked.
+    \item \textbf{Overflow Handling:} If an overflow occurs, the \texttt{error} signal is asserted, and the result is set to the maximum or minimum representable value in BF16 format.
+    \item \textbf{BF16 Conversion:} The raw sum is normalized and converted into BF16 format, including the sign, exponent, and mantissa fields.
+    \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
+\end{enumerate}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{add} module is illustrated in Figure~\ref{fig:add_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/add_flowchart.pdf}
+\caption{Flowchart of the Addition Module}
+\label{fig:add_flowchart}
+\end{figure}
+
+\noindent The module ensures efficient and accurate addition of signed integers, with robust handling of overflow conditions and conversion to BF16 format.
 
 % Subsection for Subtraction
 \subsection{Subtraction}
 \label{subsec:subtraction}
-% Describe the functionality of the module here
-% Include a block diagram and pin description
-% Add a flowchart to explain the internal logic
+
+The \texttt{sub} module is designed to perform signed integer subtraction of two 16-bit inputs and output the result in BFloat16 (BF16) format. The module ensures accurate computation and handles underflow conditions gracefully.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:sub_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Subtraction Module Interface}
+\label{tab:sub_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{b}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{result}      & Output             & 16             & The computed difference in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an underflow occurred during computation. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{sub} module operates in the following stages:
+\begin{enumerate}
+    \item \textbf{Input Validation:} The module checks the validity of the inputs and ensures that the reset signal is deasserted before proceeding.
+    \item \textbf{Subtraction:} The signed 16-bit inputs are subtracted using a hardware subtractor. The raw difference is computed, and the underflow condition is checked.
+    \item \textbf{Underflow Handling:} If an underflow occurs, the \texttt{error} signal is asserted, and the result is set to the minimum representable value in BF16 format.
+    \item \textbf{BF16 Conversion:} The raw difference is normalized and converted into BF16 format, including the sign, exponent, and mantissa fields.
+    \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
+\end{enumerate}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{sub} module is illustrated in Figure~\ref{fig:sub_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/sub_flowchart.pdf}
+\caption{Flowchart of the Subtraction Module}
+\label{fig:sub_flowchart}
+\end{figure}
+
+\noindent The module ensures efficient and accurate subtraction of signed integers, with robust handling of underflow conditions and conversion to BF16 format.
 
 % Subsection for Multiplication
 \subsection{Multiplication}
@@ -147,60 +338,264 @@ The \texttt{sqrt} module operates through a five-state Finite State Machine (FSM
 % Subsection for Cosine
 \subsection{Cosine}
 \label{subsec:cosine}
-The trigonometric functions are implemented using the CORDIC algorithm. CORDIC is an iterative method that approximates target trigonometric values through a series of rotation operations, using only additions, subtractions, and bit shifts — making it very suitable for hardware implementations. On our resource-constrained FPGA, using CORDIC increases the likelihood of meeting the very challenging 300 MHz target. Because the inputs are integers, 11 iterations are sufficient to achieve a relative error of about 5\%, which also reduces hardware resource usage. CORDIC performs calculations in radians, and since sine and cosine outputs lie within [-1, 1], we use Q2.14 fixed-point format for inputs and outputs. Fixed-point representation simplifies the CORDIC implementation and Q2.14 balances precision and resource usage.
 
-In the concrete implementation, we exploit the sine–cosine relationship and implement sine at the ALU level by reusing the cosine module:
-\[
-\sin(x) = \cos(90^\circ - x)
-\]
+The \texttt{cos} module is designed to compute the cosine of an input angle in degrees, using the CORDIC algorithm. The module supports integer inputs in the range [-999, 999] and outputs the result in BFloat16 (BF16) format. The implementation is optimized for hardware efficiency and high performance on resource-constrained FPGAs.
 
-The cosine module itself consists of three submodules:
-\begin{itemize}
-    \item \textbf{Angle processing:} maps integer input angles in [-999, 999] to a suitable range within [-90°, 90°] and converts degrees to radians in Q2.14 format.
-    \item \textbf{Core CORDIC:} takes the Q2.14 radian input and outputs Q2.14 cosine/sine values.
-    \item \textbf{Output conversion:} converts the Q2.14 results to BF16 format for output.
-\end{itemize}
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:cos_interface}.
 
-We chose BF16 as the unified output format after multiple experiments. Although IEEE-754 single precision (32-bit) was considered, achieving 300 MHz proved too difficult with 32-bit. BF16 (16-bit) provides a compact floating-point representation that meets the problem's error requirements across our various functions, so all modules output BF16.
+\begin{table}[h!]
+\centering
+\caption{Cosine Module Interface}
+\label{tab:cos_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input representing the angle in degrees. \\ \hline
+\texttt{result}      & Output             & 16             & The computed cosine value in BF16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{cos} module operates in the following stages:
+\begin{enumerate}
+    \item \textbf{Angle Processing:} The input angle is mapped to the range [-90°, 90°] using modular arithmetic. The angle is then converted from degrees to radians in Q2.14 fixed-point format.
+    \item \textbf{CORDIC Core:} The Q2.14 radian input is processed using the CORDIC algorithm in rotation mode. The algorithm performs 11 iterations to compute the cosine value with a relative error of approximately 5\%.
+    \item \textbf{Output Conversion:} The Q2.14 cosine result is converted to BF16 format. The conversion includes normalization, mantissa extraction, and exponent calculation.
+\end{enumerate}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{cos} module is illustrated in Figure~\ref{fig:cos_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/cos_flowchart.pdf}
+\caption{Flowchart of the Cosine Module}
+\label{fig:cos_flowchart}
+\end{figure}
+
+\noindent The module ensures efficient and accurate computation of cosine values, with robust handling of input errors and conversion to BF16 format.
+
 
 % Subsection for Arccosine
 \subsection{Arccosine}
 \label{subsec:arccosine}
-Because the inputs are integer angles in this project, the possible outputs for arcsin/arccos are limited: only -1, 0, 1, or error are valid results. Therefore, arcsin and arccos are implemented using simple if-else checks to cover these discrete cases.
+
+The \texttt{arccos} module computes the arccosine of an input integer slope in the range [-1, 1] and outputs the result in BFloat16 (BF16) format. The module uses a simple if-else structure to handle the limited input cases, ensuring efficient computation.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:arccos_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Arccosine Module Interface}
+\label{tab:arccos_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input slope. \\ \hline
+\texttt{result}      & Output             & 16             & The computed arccosine in BF16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if the input is invalid. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{arccos} module operates as follows:
+\begin{enumerate}
+    \item \textbf{Input Validation:} The module checks if the input slope is within the valid range [-1, 1]. If the input is out of range, the \texttt{error} signal is asserted, and the result is set to NaN.
+    \item \textbf{Special Cases:} The module directly returns precomputed BF16 values for the following cases:
+    \begin{itemize}
+        \item $\texttt{a} = -1$: $\arccos(-1) = 180^\circ$
+        \item $\texttt{a} = 0$: $\arccos(0) = 90^\circ$
+        \item $\texttt{a} = 1$: $\arccos(1) = 0^\circ$
+    \end{itemize}
+    \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
+\end{enumerate}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{arccos} module is illustrated in Figure~\ref{fig:arccos_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/arccos_flowchart.pdf}
+\caption{Flowchart of the Arccosine Module}
+\label{fig:arccos_flowchart}
+\end{figure}
+
+\noindent The module ensures efficient and accurate computation of arccosine values for the limited input cases, with robust handling of invalid inputs.
+
 
 % Subsection for Sine
 \subsection{Sine}
 \label{subsec:sine}
-Sine is implemented by reusing the cosine module at the ALU level, using the identity:
+
+The \texttt{sin} module computes the sine of an input angle in degrees by reusing the \texttt{cos} module at the ALU level. This is achieved using the trigonometric identity:
 \[
 \sin(x) = \cos(90^\circ - x)
 \]
-This avoids duplicating the CORDIC core and saves resources.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:sin_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Sine Module Interface}
+\label{tab:sin_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input representing the angle in degrees. \\ \hline
+\texttt{result}      & Output             & 16             & The computed sine value in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{sin} module operates as follows:
+\begin{enumerate}
+    \item \textbf{Angle Adjustment:} The input angle $x$ is adjusted to $90^\circ - x$ to compute the sine using the cosine module.
+    \item \textbf{Cosine Computation:} The adjusted angle is passed to the \texttt{cos} module, which computes the cosine value.
+    \item \textbf{Output:} The result from the \texttt{cos} module is directly used as the sine value. The \texttt{done} signal is asserted to indicate the computation is complete.
+\end{enumerate}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{sin} module is illustrated in Figure~\ref{fig:sin_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/sin_flowchart.pdf}
+\caption{Flowchart of the Sine Module}
+\label{fig:sin_flowchart}
+\end{figure}
+
+\noindent By reusing the \texttt{cos} module, the \texttt{sin} module avoids duplicating the CORDIC core, saving hardware resources while maintaining computational efficiency.
+
+
 
 % Subsection for Tangent
 \subsection{Tangent}
 \label{subsec:tangent}
-Because the CORDIC core uses Q2.14 fixed-point format for speed and resource efficiency, it cannot directly produce tangent values that cover the full [-90°, 90°] range in Q2.14. We first detect the special cases $\tan(90^\circ)$ and $\tan(-90^\circ)$ and output an error for those. For other angles, the CORDIC core computes both sine and cosine (in Q2.14). Each is converted to BF16, and a BF16 division module computes the final tangent value as $\sin / \cos$.
+
+The \texttt{tan} module computes the tangent of an input angle in degrees using the CORDIC algorithm. The module supports integer inputs in the range [-89°, 89°] and outputs the result in BFloat16 (BF16) format. Special cases such as $\tan(90^\circ)$ and $\tan(-90^\circ)$ are detected and flagged as errors.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:tan_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Tangent Module Interface}
+\label{tab:tan_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input representing the angle in degrees. \\ \hline
+\texttt{result}      & Output             & 16             & The computed tangent value in BF16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{tan} module operates as follows:
+\begin{enumerate}
+    \item \textbf{Input Validation:} The module checks if the input angle is $\pm90^\circ$. If so, the \texttt{error} signal is asserted, and the result is set to NaN.
+    \item \textbf{Angle Reduction:} The input angle is reduced to the range [-90°, 90°] using modular arithmetic.
+    \item \textbf{CORDIC Computation:} The reduced angle is passed to the CORDIC core, which computes both sine and cosine values in Q2.14 fixed-point format.
+    \item \textbf{BF16 Conversion:} The sine and cosine values are converted from Q2.14 to BF16 format using dedicated conversion modules.
+    \item \textbf{Division:} The tangent value is computed as $\tan(x) = \sin(x) / \cos(x)$ using a BF16 division module. If $\cos(x) = 0$, the \texttt{error} signal is asserted, and the result is set to NaN.
+    \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
+\end{enumerate}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{tan} module is illustrated in Figure~\ref{fig:tan_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/tan_flowchart.pdf}
+\caption{Flowchart of the Tangent Module}
+\label{fig:tan_flowchart}
+\end{figure}
+
+\noindent The module ensures efficient and accurate computation of tangent values, with robust handling of special cases and conversion to BF16 format.
 
 % Subsection for Arctangent
 \subsection{Arctangent}
 \label{subsec:arctangent}
-Arctangent was more challenging. When implementing CORDIC we provided both rotation and vector modes, both using Q2.14. However, arctan may receive very large inputs that exceed Q2.14 range, so direct use of the Q2.14 CORDIC is insufficient. We handle this by divide-and-conquer:
-\begin{itemize}
-    \item Handle cases -1, 0, 1 explicitly.
-    \item For inputs with absolute value greater than 1, use the identity:
+
+The \texttt{arctan} module computes the arctangent of an input integer slope in the range [-999, 999] and outputs the result in BFloat16 (BF16) format. The module uses the CORDIC algorithm in vectoring mode, with additional handling for large inputs that exceed the Q2.14 range.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:arctan_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Arctangent Module Interface}
+\label{tab:arctan_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input slope. \\ \hline
+\texttt{result}      & Output             & 16             & The computed arctangent in BF16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if the input is invalid. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{arctan} module operates as follows:
+\begin{enumerate}
+    \item \textbf{Input Validation:} The module checks if the input slope is within the valid range [-999, 999]. If the input is out of range, the \texttt{error} signal is asserted, and the result is set to NaN.
+    \item \textbf{Special Cases:} The module directly returns precomputed BF16 values for the following cases:
+    \begin{itemize}
+        \item $\texttt{a} = -1$: $\arctan(-1) = -45^\circ$
+        \item $\texttt{a} = 0$: $\arctan(0) = 0^\circ$
+        \item $\texttt{a} = 1$: $\arctan(1) = 45^\circ$
+    \end{itemize}
+    \item \textbf{Divide-and-Conquer for Large Inputs:} For inputs with absolute value greater than 1, the module uses the identities:
     \[
     \arctan(a) = 90^\circ - \arctan\left(\frac{1}{a}\right) \quad \text{for } a > 1
     \]
     \[
     \arctan(a) = -90^\circ - \arctan\left(\frac{1}{a}\right) \quad \text{for } a < -1
     \]
-\end{itemize}
+    The reciprocal $\frac{1}{a}$ is computed in Q2.14 format, and the CORDIC core calculates $\arctan\left(\frac{1}{a}\right)$.
+    \item \textbf{CORDIC Computation:} The module uses the CORDIC algorithm in vectoring mode to compute the arctangent of the input or its reciprocal. The algorithm performs 11 iterations to achieve a relative error of approximately 5\%.
+    \item \textbf{BF16 Conversion:} The Q2.14 result is converted to BF16 format, including normalization, mantissa extraction, and exponent calculation.
+    \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
+\end{enumerate}
 
-CORDIC requires $|y| \leq |x|$ when computing $\arctan(y/x)$, and it takes $x$ and $y$ as inputs. To meet the Q2.14 range limits, we set $x = 1$ and $y = 1/a$ (so the CORDIC computes $\arctan(1/a)$). Using the identities above allows computing $\arctan(a)$ for large $|a|$, and we finally convert the result to BF16 for output.
+\subsubsection*{Flowchart}
+The flow of the \texttt{arctan} module is illustrated in Figure~\ref{fig:arctan_flowchart}.
 
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/arctan_flowchart.pdf}
+\caption{Flowchart of the Arctangent Module}
+\label{fig:arctan_flowchart}
+\end{figure}
 
+\noindent The module ensures efficient and accurate computation of arctangent values, with robust handling of large inputs and conversion to BF16 format.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Logarithm}
 \label{subsec:logarithm}
 
@@ -339,4 +734,46 @@ The \texttt{pow} module operates through a sophisticated five-phase Finite State
 % Subsection for Factorial
 \subsection{Factorial}
 \label{subsec:factorial}
-Factorial accepts integer input and is implemented as a straightforward iterative multiplication. For internal speed we use a 32-bit unsigned integer for accumulation. The final result is converted to BF16 for output.
+
+The \texttt{fac} module computes the factorial of an integer input using an iterative multiplication approach. The module supports integer inputs in the range [0, 12] and outputs the result in BFloat16 (BF16) format. Inputs outside this range are flagged as errors.
+
+\subsubsection*{Inputs and Outputs}
+The inputs and outputs of the module are described in Table~\ref{tab:fac_interface}.
+
+\begin{table}[h!]
+\centering
+\caption{Factorial Module Interface}
+\label{tab:fac_interface}
+\begin{tabular}{|c|c|c|p{8cm}|}
+\hline
+\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+\texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{result}      & Output             & 16             & The computed factorial in BFloat16 format. \\ \hline
+\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+\texttt{error}       & Output             & 1              & A flag indicating if the input is invalid. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{Block Diagram and Operation}
+The \texttt{fac} module operates as follows:
+\begin{enumerate}
+    \item \textbf{Input Validation:} The module checks if the input is within the valid range [0, 12]. If the input is negative or greater than 12, the \texttt{error} signal is asserted, and the computation is aborted.
+    \item \textbf{Factorial Computation:} For valid inputs, the module iteratively multiplies integers from 1 to the input value using a 32-bit unsigned accumulator.
+    \item \textbf{BF16 Conversion:} The computed factorial is converted to BF16 format using a normalization process that extracts the sign, exponent, and mantissa.
+    \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
+\end{enumerate}
+
+\subsubsection*{Flowchart}
+The flow of the \texttt{fac} module is illustrated in Figure~\ref{fig:fac_flowchart}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{images/fac_flowchart.pdf}
+\caption{Flowchart of the Factorial Module}
+\label{fig:fac_flowchart}
+\end{figure}
+
+\noindent The module ensures efficient computation of factorial values, with robust handling of invalid inputs and conversion to BF16 format.
