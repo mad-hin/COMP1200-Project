@@ -26,13 +26,13 @@ Table of Contents
     5.9 Arccosine
     5.10 Sine
     5.11 Arccosine
-    5.10 Tangent
-    5.11 Arctangent
-    5.12 Logarithm
-    5.13 Power
-    5.14 Exponential Operations
-    5.15 Factorial
-
+    5.12 Tangent
+    5.13 Arctangent
+    5.14 Logarithm
+    5.15 Power
+    5.16 Exponential Operations
+    5.17 Factorial
+    
     Under each module we shd have:
     Functionality: Explain what the module does. 
     Block Diagram & Pin Description: Diagram of the module internals and a table explaining its ports (inputs/outputs).

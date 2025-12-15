@@ -1,9 +1,9 @@
 `timescale 1ns/1ps
 
-// 说明：纯 Verilog-2001，自带 BF16->real 辅助函数与自检。
-// 时钟 100 MHz，可根据需要调整。start 为单拍脉冲。
+// Note: Pure Verilog-2001 testbench with built-in BF16->real helper and self-check.
+// Clock is 100 MHz (adjustable). 'start' is a single-cycle pulse.
 module arctan_tb;
-    // DUT 端口
+    // DUT ports
     reg  clk;
     reg  rst;
     reg  start;
@@ -12,11 +12,11 @@ module arctan_tb;
     wire error;
     wire done;
 
-    // 统计
+    // Statistics
     integer pass_cnt = 0;
     integer fail_cnt = 0;
 
-    // ========= 辅助函数 =========
+    // ========= Helper functions =========
     function real bf16_to_real;
         input [15:0] bf;
         reg sign;
@@ -28,11 +28,11 @@ module arctan_tb;
             exp  = bf[14:7];
             mant = bf[6:0];
             if (exp == 0) begin
-                // subnormal 或 0
+                // subnormal or zero
                 frac = mant / 128.0;
                 bf16_to_real = (sign ? -1.0 : 1.0) * frac * (2.0 ** (-126));
             end else if (exp == 8'hFF) begin
-                bf16_to_real = 0.0/0.0; // NaN/Inf，仿真打印会显示 nan/inf
+                bf16_to_real = 0.0/0.0; // NaN/Inf; simulation will print nan/inf
             end else begin
                 frac = 1.0 + mant / 128.0;
                 bf16_to_real = (sign ? -1.0 : 1.0) * frac * (2.0 ** (exp - 127));
@@ -53,14 +53,14 @@ module arctan_tb;
         real got_deg;
         real err_deg;
         begin
-            // 施加输入与 start 脉冲（同步上升沿）
+            // Apply input and a single-cycle start pulse (synchronized to clock)
             @(negedge clk);
             a     <= slope;
             start <= 1'b1;
             @(negedge clk);
             start <= 1'b0;
 
-            // 等待 done
+            // Wait for done
             wait (done === 1'b1);
             got_deg = bf16_to_real(result);
             err_deg = got_deg - exp_deg;
@@ -75,12 +75,12 @@ module arctan_tb;
                          $time, slope, exp_deg, got_deg, err_deg);
             end
 
-            // 等待 done 拉低，回到 IDLE
+            // Wait for done to deassert, return to IDLE
             @(negedge clk);
         end
     endtask
 
-    // ========= DUT 实例 =========
+    // ========= DUT instantiation =========
     arctan dut (
         .clk   (clk),
         .rst   (rst),
@@ -91,7 +91,7 @@ module arctan_tb;
         .done  (done)
     );
 
-    // ========= 时钟与复位 =========
+    // ========= Clock and reset =========
     initial begin
         clk = 1'b0;
         forever #5 clk = ~clk; // 100 MHz
@@ -105,17 +105,17 @@ module arctan_tb;
         rst   = 1'b0;
     end
 
-    // ========= 激励序列 =========
+    // ========= Stimulus sequence =========
     initial begin
-        // 等待复位释放
+        // Wait for reset release
         @(negedge rst);
 
-        // 特殊值检查
+        // Special-value checks
         do_test(16'sd0   ,  0.0     );
         do_test(16'sd1   , 45.0     );
         do_test(-16'sd1  , -45.0    );
 
-        // 常规测试（预期角度为度）
+        // General tests (expected angles in degrees)
         do_test(16'sd2   , 63.4349  );
         do_test(-16'sd2  , -63.4349 );
         do_test(16'sd10  , 84.2894  );
@@ -124,7 +124,7 @@ module arctan_tb;
         do_test(-16'sd456, -89.8750 );
         do_test(16'sd999 , 89.9427  );
 
-        // 统计结果
+        // Report summary
         $display("======== Summary ========");
         $display("PASS: %0d", pass_cnt);
         $display("FAIL: %0d", fail_cnt);

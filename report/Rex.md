@@ -1,11 +1,64 @@
+# 5.8 Cosine
+The trigonometric functions are implemented using the CORDIC algorithm. CORDIC is an iterative method that approximates target trigonometric values through a series of rotation operations, using only additions, subtractions, and bit shifts — making it very suitable for hardware implementations. On our resource-constrained FPGA, using CORDIC increases the likelihood of meeting the very challenging 300 MHz target. Because the inputs are integers, 11 iterations are sufficient to achieve a relative error of about 5%, which also reduces hardware resource usage. CORDIC performs calculations in radians, and since sine and cosine outputs lie within [-1, 1], we use Q2.14 fixed-point format for inputs and outputs. Fixed-point representation simplifies the CORDIC implementation and Q2.14 balances precision and resource usage.
 
-    5.8 Cosine
-    5.9 Arccosine
-    5.10 Sine
-    5.11 Arccosine
-    5.10 Tangent
-    5.11 Arctangent
-    5.15 Factorial
+In the concrete implementation, we exploit the sine–cosine relationship and implement sine at the ALU level by reusing the cosine module:
+sin(x) = cos(90° - x)
+
+The cosine module itself consists of three submodules:
+- Angle processing: maps integer input angles in [-999, 999] to a suitable range within [-90°, 90°] and converts degrees to radians in Q2.14 format.
+- Core CORDIC: takes the Q2.14 radian input and outputs Q2.14 cosine/sine values.
+- Output conversion: converts the Q2.14 results to BF16 format for output.
+
+We chose BF16 as the unified output format after multiple experiments. Although IEEE-754 single precision (32-bit) was considered, achieving 300 MHz proved too difficult with 32-bit. BF16 (16-bit) provides a compact floating-point representation that meets the problem's error requirements across our various functions, so all modules output BF16.
+
+# 5.9 Arccosine
+Because the inputs are integer angles in this project, the possible outputs for arcsin/arccos are limited: only -1, 0, 1, or error are valid results. Therefore, arcsin and arccos are implemented using simple if-else checks to cover these discrete cases.
+
+# 5.10 Sine
+Sine is implemented by reusing the cosine module at the ALU level, using the identity sin(x) = cos(90° - x). This avoids duplicating the CORDIC core and saves resources.
+
+# 5.11 Arccosine
+(See 5.9) Arccosine (and arcsine) are handled by direct condition checks because input domain is integer — outputs are limited to -1, 0, 1, or error. Thus a straightforward if-else implementation suffices.
+
+# 5.12 Tangent
+Because the CORDIC core uses Q2.14 fixed-point format for speed and resource efficiency, it cannot directly produce tangent values that cover the full [-90°, 90°] range in Q2.14. We first detect the special cases tan(90°) and tan(-90°) and output an error for those. For other angles, the CORDIC core computes both sine and cosine (in Q2.14). Each is converted to BF16, and a BF16 division module computes the final tangent value as sin/cos.
+
+# 5.13 Arctangent
+Arctangent was more challenging. When implementing CORDIC we provided both rotation and vector modes, both using Q2.14. However, arctan may receive very large inputs that exceed Q2.14 range, so direct use of the Q2.14 CORDIC is insufficient. We handle this by divide-and-conquer:
+- Handle cases -1, 0, 1 explicitly.
+- For inputs with absolute value greater than 1, use the identity:
+  arctan(a) = 90° - arctan(1/a) for a > 1
+  arctan(a) = -90° - arctan(1/a) for a < -1
+
+CORDIC requires |y| <= |x| when computing arctan(y/x), and it takes x and y as inputs. To meet the Q2.14 range limits, we set x = 1 and y = 1/a (so the CORDIC computes arctan(1/a)). Using the identities above allows computing arctan(a) for large |a|, and we finally convert the result to BF16 for output.
+
+# 5.17 Factorial
+Factorial accepts integer input and is implemented as a straightforward iterative multiplication. For internal speed we use a 32-bit unsigned integer for accumulation. The final result is converted to BF16 for output.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5.8 Cosine
+5.9 Arccosine
+5.10 Sine
+5.11 Arccosine
+5.12 Tangent
+5.13 Arctangent
+
+5.17 Factorial
+
+
 
 三角函数的部分本质上是用了cordic算法来实现，
 cordic算法是一种迭代算法，通过一系列的旋转操作来逼近目标角度的三角函数值，
