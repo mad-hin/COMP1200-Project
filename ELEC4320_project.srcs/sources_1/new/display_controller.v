@@ -158,9 +158,9 @@ module display_controller(
     // Slow timer for window scrolling (approx 0.7s at 100MHz)
     reg [26:0] scroll_cnt;
     always @(posedge clk or posedge rst) begin
-        if (rst) scroll_cnt <= 0;
+        if (rst) scroll_cnt <= 27'd1; // Start at 1 to avoid immediate tick
         else if (start) scroll_cnt <= scroll_cnt + 1;
-        else scroll_cnt <= 0;
+        else scroll_cnt <= 27'd1;
     end
     wire scroll_tick = (scroll_cnt == 27'd0); // Tick on overflow/wrap
 
