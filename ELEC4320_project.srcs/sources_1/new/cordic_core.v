@@ -4,8 +4,9 @@
 // 不可以用IP和直接用LUT
 
 module cordic_core #(
-    parameter MODE = 0,             // 0:SIN, 1:ARCTAN
-    parameter integer ITERATIONS = 11
+    parameter MODE = 0,               // 0:SIN, 1:ARCTAN
+    parameter integer ITERATIONS = 11,
+    parameter DEEP_PIPELINE = 1       // 0:单拍/级；1:两拍/级（移位与加减拆分）
 )(
     input  wire clk,
     input  wire rst,
@@ -49,6 +50,12 @@ module cordic_core #(
     // 有效信号流水
     reg valid_pipe [0:ITERATIONS];
 
+    // 仅在 DEEP_PIPELINE=1 时使用的中间寄存
+    reg signed [15:0] x_shift   [0:ITERATIONS-1];
+    reg signed [15:0] y_shift   [0:ITERATIONS-1];
+    reg signed [15:0] lut_reg   [0:ITERATIONS-1];
+    reg               valid_shift [0:ITERATIONS-1];
+
     // Stage 0：加载输入
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -86,43 +93,102 @@ module cordic_core #(
     genvar i;
     generate
         for (i = 0; i < ITERATIONS; i = i + 1) begin : cordic_stage
-            always @(posedge clk or posedge rst) begin
-                if (rst) begin
-                    x_pipe[i+1]     <= 16'sd0;
-                    y_pipe[i+1]     <= 16'sd0;
-                    z_pipe[i+1]     <= 16'sd0;
-                    valid_pipe[i+1] <= 1'b0;
-                end else begin
-                    valid_pipe[i+1] <= valid_pipe[i];
-                    case (MODE)
-                        0: begin // rotation mode
-                            if (z_pipe[i][15]) begin
-                                x_pipe[i+1] <= x_pipe[i] + (y_pipe[i] >>> i);
-                                y_pipe[i+1] <= y_pipe[i] - (x_pipe[i] >>> i);
-                                z_pipe[i+1] <= z_pipe[i] + angle_lut(i);
-                            end else begin
-                                x_pipe[i+1] <= x_pipe[i] - (y_pipe[i] >>> i);
-                                y_pipe[i+1] <= y_pipe[i] + (x_pipe[i] >>> i);
-                                z_pipe[i+1] <= z_pipe[i] - angle_lut(i);
+            if (DEEP_PIPELINE) begin : deep
+                // Phase A：移位和 LUT 寄存
+                always @(posedge clk or posedge rst) begin
+                    if (rst) begin
+                        x_shift[i]     <= 16'sd0;
+                        y_shift[i]     <= 16'sd0;
+                        lut_reg[i]     <= 16'sd0;
+                        valid_shift[i] <= 1'b0;
+                    end else begin
+                        x_shift[i]     <= x_pipe[i] >>> i;
+                        y_shift[i]     <= y_pipe[i] >>> i;
+                        lut_reg[i]     <= angle_lut(i);
+                        valid_shift[i] <= valid_pipe[i];
+                    end
+                end
+
+                // Phase B：加减与 z 更新
+                always @(posedge clk or posedge rst) begin
+                    if (rst) begin
+                        x_pipe[i+1]     <= 16'sd0;
+                        y_pipe[i+1]     <= 16'sd0;
+                        z_pipe[i+1]     <= 16'sd0;
+                        valid_pipe[i+1] <= 1'b0;
+                    end else begin
+                        valid_pipe[i+1] <= valid_shift[i];
+                        case (MODE)
+                            0: begin // rotation mode
+                                if (z_pipe[i][15]) begin
+                                    x_pipe[i+1] <= x_pipe[i] + y_shift[i];
+                                    y_pipe[i+1] <= y_pipe[i] - x_shift[i];
+                                    z_pipe[i+1] <= z_pipe[i] + lut_reg[i];
+                                end else begin
+                                    x_pipe[i+1] <= x_pipe[i] - y_shift[i];
+                                    y_pipe[i+1] <= y_pipe[i] + x_shift[i];
+                                    z_pipe[i+1] <= z_pipe[i] - lut_reg[i];
+                                end
                             end
-                        end
-                        1: begin // vectoring mode
-                            if (y_pipe[i][15]) begin
-                                x_pipe[i+1] <= x_pipe[i] - (y_pipe[i] >>> i);
-                                y_pipe[i+1] <= y_pipe[i] + (x_pipe[i] >>> i);
-                                z_pipe[i+1] <= z_pipe[i] - angle_lut(i);
-                            end else begin
-                                x_pipe[i+1] <= x_pipe[i] + (y_pipe[i] >>> i);
-                                y_pipe[i+1] <= y_pipe[i] - (x_pipe[i] >>> i);
-                                z_pipe[i+1] <= z_pipe[i] + angle_lut(i);
+                            1: begin // vectoring mode
+                                if (y_pipe[i][15]) begin
+                                    x_pipe[i+1] <= x_pipe[i] - y_shift[i];
+                                    y_pipe[i+1] <= y_pipe[i] + x_shift[i];
+                                    z_pipe[i+1] <= z_pipe[i] - lut_reg[i];
+                                end else begin
+                                    x_pipe[i+1] <= x_pipe[i] + y_shift[i];
+                                    y_pipe[i+1] <= y_pipe[i] - x_shift[i];
+                                    z_pipe[i+1] <= z_pipe[i] + lut_reg[i];
+                                end
                             end
-                        end
-                        default: begin
-                            x_pipe[i+1] <= 16'sd0;
-                            y_pipe[i+1] <= 16'sd0;
-                            z_pipe[i+1] <= 16'sd0;
-                        end
-                    endcase
+                            default: begin
+                                x_pipe[i+1] <= 16'sd0;
+                                y_pipe[i+1] <= 16'sd0;
+                                z_pipe[i+1] <= 16'sd0;
+                            end
+                        endcase
+                    end
+                end
+            end else begin : shallow
+                // 原单拍/级实现
+                always @(posedge clk or posedge rst) begin
+                    if (rst) begin
+                        x_pipe[i+1]     <= 16'sd0;
+                        y_pipe[i+1]     <= 16'sd0;
+                        z_pipe[i+1]     <= 16'sd0;
+                        valid_pipe[i+1] <= 1'b0;
+                    end else begin
+                        valid_pipe[i+1] <= valid_pipe[i];
+                        case (MODE)
+                            0: begin // rotation mode
+                                if (z_pipe[i][15]) begin
+                                    x_pipe[i+1] <= x_pipe[i] + (y_pipe[i] >>> i);
+                                    y_pipe[i+1] <= y_pipe[i] - (x_pipe[i] >>> i);
+                                    z_pipe[i+1] <= z_pipe[i] + angle_lut(i);
+                                end else begin
+                                    x_pipe[i+1] <= x_pipe[i] - (y_pipe[i] >>> i);
+                                    y_pipe[i+1] <= y_pipe[i] + (x_pipe[i] >>> i);
+                                    z_pipe[i+1] <= z_pipe[i] - angle_lut(i);
+                                end
+                            end
+                            1: begin // vectoring mode
+                                if (y_pipe[i][15]) begin
+                                    x_pipe[i+1] <= x_pipe[i] - (y_pipe[i] >>> i);
+                                    y_pipe[i+1] <= y_pipe[i] + (x_pipe[i] >>> i);
+                                    z_pipe[i+1] <= z_pipe[i] - angle_lut(i);
+                                end else begin
+                                    x_pipe[i+1] <= x_pipe[i] + (y_pipe[i] >>> i);
+                                    y_pipe[i+1] <= y_pipe[i] - (x_pipe[i] >>> i);
+                                    z_pipe[i+1] <= z_pipe[i] + angle_lut(i);
+                                end
+                            end
+                            default: begin
+                                x_pipe[i+1] <= 16'sd0;
+                                y_pipe[i+1] <= 16'sd0;
+                                z_pipe[i+1] <= 16'sd0;
+                            end
+                        endcase
+                    end
                 end
             end
         end
