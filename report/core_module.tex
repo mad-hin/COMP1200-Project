@@ -1,4 +1,3 @@
-% filepath: c:\HKUST\ELEC4320\Proj\ELEC4320-Project\report\core_module.tex
 \section{Detailed Module Design}
 \label{sec:detailed_module_design}
 
@@ -9,10 +8,10 @@
 
 The \texttt{input\_output\_controller} module is responsible for managing user inputs and displaying the corresponding outputs on a 7-segment display. It processes raw button inputs, debounces them, detects rising edges, and converts the input values into a format suitable for further processing. The module also handles the display of the current input value on the 7-segment display.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:io_controller_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Input/Output Controller Interface}
 \label{tab:io_controller_interface}
@@ -29,12 +28,34 @@ The inputs and outputs of the module are described in Table~\ref{tab:io_controll
 \texttt{reset\_input} & Input              & 1              & Signal to reset the input controller. \\ \hline
 \texttt{seg}          & Output             & 7              & 7-segment display output. \\ \hline
 \texttt{an}           & Output             & 4              & 7-segment display anode control. \\ \hline
-\texttt{input\_val}   & Output             & \texttt{`INPUTOUTBIT} & Packed input value. \\ \hline
+\texttt{input\_val}   & Output             & 16 & Packed input value. \\ \hline
 \texttt{input\_done}  & Output             & 1              & Signal indicating that the input is complete. \\ \hline
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{input\_output} module is illustrated in Figure~\ref{fig:input_output_flowchart}.
+    
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/input.png}
+\caption{Flowchart of the Input/Output Module}
+\label{fig:input_output_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{input\_output} module is illustrated in Figure~\ref{fig:input_output_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/input_sch.png}
+\caption{Block Diagram of the Input/Output Module}
+\label{fig:input_output_sch}
+\end{figure}
+
+\noindent
 The \texttt{input\_output\_controller} module consists of the following submodules:
 \begin{itemize}
     \item \textbf{Clock Divider:} Generates a slower clock signal (100 MHz) from the system clock (300 MHz) for use in the input controller.
@@ -44,12 +65,12 @@ The \texttt{input\_output\_controller} module consists of the following submodul
     \item \textbf{Output Controller:} Drives the 7-segment display to show the current input value. The display updates smoothly using the fast clock.
 \end{itemize}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{input\_output\_controller} module is illustrated in Figure~\ref{fig:io_controller_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/io_controller_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/io_controller_flowchart.pdf}
 % \caption{Flowchart of the Input/Output Controller Module}
 % \label{fig:io_controller_flowchart}
 % \end{figure}
@@ -69,15 +90,16 @@ The \texttt{input\_output\_controller} module consists of the following submodul
 
 
 % Subsection for Display Controller
+\newpage 
 \subsection{Display Controller}
 \label{subsec:display_controller}
 
 The \texttt{display\_controller} module is responsible for decoding and displaying the result of computations on a 7-segment display. It converts the BFloat16 (BF16) result into a human-readable decimal format, handles error signaling, and supports scrolling for long numbers.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:display_controller_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Display Controller Interface}
 \label{tab:display_controller_interface}
@@ -86,7 +108,7 @@ The inputs and outputs of the module are described in Table~\ref{tab:display_con
 \textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
 \texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
 \texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
-\texttt{result}      & Input              & \texttt{`INPUTOUTBIT} & BF16 result to be displayed. \\ \hline
+\texttt{result}      & Input              & 16 & BF16 result to be displayed. \\ \hline
 \texttt{error}       & Input              & 1              & Error flag indicating invalid computation. \\ \hline
 \texttt{start}       & Input              & 1              & Start signal indicating that the result is ready. \\ \hline
 \texttt{seg}         & Output             & 7              & 7-segment display output. \\ \hline
@@ -96,7 +118,29 @@ The inputs and outputs of the module are described in Table~\ref{tab:display_con
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{display} module is illustrated in Figure~\ref{fig:display_flowchart}.
+    
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/display.png}
+\caption{Flowchart of the Display Module}
+\label{fig:display_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{display} module is illustrated in Figure~\ref{fig:display_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/display_sch.png}
+\caption{Block Diagram of the Display Module}
+\label{fig:display_sch}
+\end{figure}
+
+\noindent
 The \texttt{display\_controller} module operates in the following stages:
 \begin{itemize}
     \item \textbf{BF16 Decoding:} The BF16 result is decoded into its sign, exponent, and mantissa fields. The exponent is adjusted using a bias of 127, and the mantissa is normalized to construct the fixed-point representation.
@@ -109,12 +153,12 @@ The \texttt{display\_controller} module operates in the following stages:
     \item \textbf{Multiplexing:} The module uses a multiplexing scheme to drive the 7-segment display, refreshing each digit at a high frequency to ensure smooth display.
 \end{itemize}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{display\_controller} module is illustrated in Figure~\ref{fig:display_controller_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/display_controller_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/display_controller_flowchart.pdf}
 % \caption{Flowchart of the Display Controller Module}
 % \label{fig:display_controller_flowchart}
 % \end{figure}
@@ -124,15 +168,16 @@ The \texttt{display\_controller} module operates in the following stages:
 
 
 % Subsection for Addition
+\newpage 
 \subsection{Addition}
 \label{subsec:addition}
 
-The \texttt{add} module is designed to perform signed integer addition of two 16-bit inputs and output the result in BFloat16 (BF16) format. The module ensures accurate computation and handles overflow conditions gracefully.
+The \texttt{add} module is designed to perform signed integer addition of two 16-bit inputs and output the result in BFloat16 (BF16) format. The module ensures accurate computation and handles overflow conditions gracefully. With the addition of an \texttt{add\_sub\_flag}, the module can also perform subtraction when the flag is set.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:add_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Addition Module Interface}
 \label{tab:add_interface}
@@ -144,93 +189,109 @@ The inputs and outputs of the module are described in Table~\ref{tab:add_interfa
 \texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
 \texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
 \texttt{b}           & Input              & 16             & Signed integer input. \\ \hline
+\texttt{add\_sub\_flag} & Input              & 1              & Flag to indicate addition (0) or subtraction (1). \\ \hline
 \texttt{result}      & Output             & 16             & The computed sum in BFloat16 format. \\ \hline
 \texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
 \texttt{error}       & Output             & 1              & A flag indicating if an overflow occurred during computation. \\ \hline
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{add} module is illustrated in Figure~\ref{fig:add_flowchart}.
+    
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/add.png}
+\caption{Flowchart of the Addition Module}
+\label{fig:add_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{add} module is illustrated in Figure~\ref{fig:add_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/add_sch.png}
+\caption{Block Diagram of the Addition Module}
+\label{fig:add_sch}
+\end{figure}
+
+\noindent
 The \texttt{add} module operates in the following stages:
 \begin{enumerate}
     \item \textbf{Input Validation:} The module checks the validity of the inputs and ensures that the reset signal is deasserted before proceeding.
     \item \textbf{Addition:} The signed 16-bit inputs are added using a hardware adder. The raw sum is computed, and the overflow condition is checked.
-    \item \textbf{Overflow Handling:} If an overflow occurs, the \texttt{error} signal is asserted, and the result is set to the maximum or minimum representable value in BF16 format.
+    \item \textbf{Subtraction Handling:} If the \texttt{add\_sub\_flag} is set, the module will first negate the second input \texttt{b} before performing the addition, effectively computing \texttt{a - b}.
     \item \textbf{BF16 Conversion:} The raw sum is normalized and converted into BF16 format, including the sign, exponent, and mantissa fields.
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-% \subsubsection*{Flowchart}
-% The flow of the \texttt{add} module is illustrated in Figure~\ref{fig:add_flowchart}.
 
-% \begin{figure}[h!]
-% \centering
-% \includegraphics[width=0.8\textwidth]{images/add_flowchart.pdf}
-% \caption{Flowchart of the Addition Module}
-% \label{fig:add_flowchart}
-% \end{figure}
-
-\noindent The module ensures efficient and accurate addition of signed integers, with robust handling of overflow conditions and conversion to BF16 format.
+\noindent The module handles both addition and subtraction of signed integers, with robust handling of overflow conditions and conversion to BF16 format.
 
 % Subsection for Subtraction
-\subsection{Subtraction}
-\label{subsec:subtraction}
+% \newpage 
+% \subsection{Subtraction}
+% \label{subsec:subtraction}
 
-The \texttt{sub} module is designed to perform signed integer subtraction of two 16-bit inputs and output the result in BFloat16 (BF16) format. The module ensures accurate computation and handles underflow conditions gracefully.
+% The \texttt{sub} module is designed to perform signed integer subtraction of two 16-bit inputs and output the result in BFloat16 (BF16) format. The module ensures accurate computation and handles underflow conditions gracefully.
 
-\subsubsection*{Inputs and Outputs}
-The inputs and outputs of the module are described in Table~\ref{tab:sub_interface}.
+% \subsubsection{Inputs and Outputs}
+% The inputs and outputs of the module are described in Table~\ref{tab:sub_interface}.
 
-\begin{table}[h!]
-\centering
-\caption{Subtraction Module Interface}
-\label{tab:sub_interface}
-\begin{tabular}{|c|c|c|p{8cm}|}
-\hline
-\textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
-\texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
-\texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
-\texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
-\texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
-\texttt{b}           & Input              & 16             & Signed integer input. \\ \hline
-\texttt{result}      & Output             & 16             & The computed difference in BFloat16 format. \\ \hline
-\texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
-\texttt{error}       & Output             & 1              & A flag indicating if an underflow occurred during computation. \\ \hline
-\end{tabular}
-\end{table}
+% \begin{table}[H]
+% \centering
+% \caption{Subtraction Module Interface}
+% \label{tab:sub_interface}
+% \begin{tabular}{|c|c|c|p{8cm}|}
+% \hline
+% \textbf{Signal Name} & \textbf{Direction} & \textbf{Width} & \textbf{Description} \\ \hline
+% \texttt{clk}         & Input              & 1              & Clock signal for synchronization. \\ \hline
+% \texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
+% \texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
+% \texttt{a}           & Input              & 16             & Signed integer input. \\ \hline
+% \texttt{b}           & Input              & 16             & Signed integer input. \\ \hline
+% \texttt{result}      & Output             & 16             & The computed difference in BFloat16 format. \\ \hline
+% \texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
+% \texttt{error}       & Output             & 1              & A flag indicating if an underflow occurred during computation. \\ \hline
+% \end{tabular}
+% \end{table}
 
-\subsubsection*{Block Diagram and Operation}
-The \texttt{sub} module operates in the following stages:
-\begin{enumerate}
-    \item \textbf{Input Validation:} The module checks the validity of the inputs and ensures that the reset signal is deasserted before proceeding.
-    \item \textbf{Subtraction:} The signed 16-bit inputs are subtracted using a hardware subtractor. The raw difference is computed, and the underflow condition is checked.
-    \item \textbf{Underflow Handling:} If an underflow occurs, the \texttt{error} signal is asserted, and the result is set to the minimum representable value in BF16 format.
-    \item \textbf{BF16 Conversion:} The raw difference is normalized and converted into BF16 format, including the sign, exponent, and mantissa fields.
-    \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
-\end{enumerate}
+% \subsubsection{Block Diagram and Operation}
+% The \texttt{sub} module operates in the following stages:
+% \begin{enumerate}
+%     \item \textbf{Input Validation:} The module checks the validity of the inputs and ensures that the reset signal is deasserted before proceeding.
+%     \item \textbf{Subtraction:} The signed 16-bit inputs are subtracted using a hardware subtractor. The raw difference is computed, and the underflow condition is checked.
+%     \item \textbf{Underflow Handling:} If an underflow occurs, the \texttt{error} signal is asserted, and the result is set to the minimum representable value in BF16 format.
+%     \item \textbf{BF16 Conversion:} The raw difference is normalized and converted into BF16 format, including the sign, exponent, and mantissa fields.
+%     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
+% \end{enumerate}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{sub} module is illustrated in Figure~\ref{fig:sub_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/sub_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/sub_flowchart.pdf}
 % \caption{Flowchart of the Subtraction Module}
 % \label{fig:sub_flowchart}
 % \end{figure}
 
-\noindent The module ensures efficient and accurate subtraction of signed integers, with robust handling of underflow conditions and conversion to BF16 format.
+% \noindent The module ensures efficient and accurate subtraction of signed integers, with robust handling of underflow conditions and conversion to BF16 format.
 
 % Subsection for Multiplication
+\newpage 
 \subsection{Multiplication}
 \label{subsec:multiplication}
 
 The \texttt{mul} module is a pipelined arithmetic unit designed to perform signed integer multiplication on two inputs (\texttt{a} and \texttt{b}) and automatically convert the resulting product into the BFloat16 (BF16) floating-point format.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:mul_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Multiplication Module Interface}
 \label{tab:mul_interface}
@@ -248,8 +309,29 @@ The inputs and outputs of the module are described in Table~\ref{tab:mul_interfa
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
-The multiplication module operates through a four-stage pipeline to convert signed integer inputs into a BFloat16 format. The stages are described as follows:
+\subsubsection{Flowchart}
+The flow of the \texttt{mul} module is illustrated in Figure~\ref{fig:mul_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/mul.png}
+\caption{Flowchart of the Multiplication Module}
+\label{fig:mul_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{mul} module is illustrated in Figure~\ref{fig:mul_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/mul_sch.png}
+\caption{Block Diagram of the Multiplication Module}
+\label{fig:mul_sch}
+\end{figure}
+
+\noindent The multiplication module operates through a four-stage pipeline to convert signed integer inputs into a BFloat16 format. The stages are described as follows:
 \begin{enumerate}
     \item \textbf{Stage 1:} Perform a signed 16×16 multiplication to generate a raw 32-bit product.
     \item \textbf{Stage 2:} Extract the sign bit and compute the absolute value of the product to facilitate downstream normalization.
@@ -258,17 +340,17 @@ The multiplication module operates through a four-stage pipeline to convert sign
 \end{enumerate}
 
 \noindent The module also includes error handling to ensure that invalid inputs or computation errors are flagged appropriately.
-
 % Subsection for Division
+\newpage 
 \subsection{Division}
 \label{subsec:division}
 
 The \texttt{div} module is a sequential hardware divider using the Restoring Division algorithm (Reference: \url{https://www.geeksforgeeks.org/computer-organization-architecture/restoring-division-algorithm-unsigned-integer/}). It is designed to divide two signed integers and output the result in BF16 format. The module utilizes a Finite State Machine (FSM) to manage the calculation stages, transitioning from initialization to integer division, fractional division, and finally output formatting.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:div_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Division Module Interface}
 \label{tab:div_interface}
@@ -286,8 +368,28 @@ The inputs and outputs of the module are described in Table~\ref{tab:div_interfa
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
-The \texttt{div} module executes a four-stage finite state machine to convert signed integers into BFloat16 format. The stages are described as follows:
+\subsubsection{Flowchart}
+The flow of the \texttt{div} module is illustrated in Figure~\ref{fig:div_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/div.png}
+\caption{Flowchart of the Division Module}
+\label{fig:div_flowchart}
+\end{figure}
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{div} module is illustrated in Figure~\ref{fig:div_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/div_sch.png}
+\caption{Block Diagram of the Division Module}
+\label{fig:div_sch}
+\end{figure}
+
+\noindent The \texttt{div} module executes a four-stage finite state machine to convert signed integers into BFloat16 format. The stages are described as follows:
 \begin{enumerate}
     \item \textbf{Initialization (S\_IDLE):} The system checks for division-by-zero errors, determines the result's sign, and converts inputs into absolute values, as the Restoring Division algorithm operates on unsigned integers.
     \item \textbf{Integer Division (S\_INTDIV):} The module uses the Restoring Division algorithm to calculate the whole number portion of the quotient.
@@ -298,15 +400,16 @@ The \texttt{div} module executes a four-stage finite state machine to convert si
 \noindent The module also includes error handling to ensure that invalid inputs, such as division by zero, are flagged appropriately.
 
 % Subsection for Square Root
+\newpage 
 \subsection{Square Root}
 \label{subsec:square_root}
 
 The \texttt{sqrt} module is designed to compute the square root of a signed 16-bit integer and output the result in BFloat16 (BF16) floating-point format. It avoids using complex IP cores or DSP slices by implementing a hardware-efficient restoring binary square root algorithm (Reference: \url{https://en.wikipedia.org/wiki/Square_root_algorithms#Binary_numeral_system_(base_2)}).
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:sqrt_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Square Root Module Interface}
 \label{tab:sqrt_interface}
@@ -323,7 +426,28 @@ The inputs and outputs of the module are described in Table~\ref{tab:sqrt_interf
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{sqrt} module is illustrated in Figure~\ref{fig:sqrt_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/sqrt.png}
+\caption{Flowchart of the Square Root Module}
+\label{fig:sqrt_flowchart}
+\end{figure}
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{sqrt} module is illustrated in Figure~\ref{fig:sqrt_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/sqrt_sch.png}
+\caption{Flowchart of the Square Root Module}
+\label{fig:sqrt_sch}
+\end{figure}
+\noindent 
+
 The \texttt{sqrt} module operates through a five-state Finite State Machine (FSM). The stages are described as follows:
 \begin{enumerate}
     \item \textbf{S\_IDLE:} The module waits for a \texttt{start} signal to begin computation.
@@ -336,15 +460,16 @@ The \texttt{sqrt} module operates through a five-state Finite State Machine (FSM
 \noindent The module also includes error handling to ensure that invalid inputs, such as negative numbers, are flagged appropriately.
 
 % Subsection for Cosine
+\newpage 
 \subsection{Cosine}
 \label{subsec:cosine}
 
 The \texttt{cos} module is designed to compute the cosine of an input angle in degrees, using the CORDIC algorithm. The module supports integer inputs in the range [-999, 999] and outputs the result in BFloat16 (BF16) format. The implementation is optimized for hardware efficiency and high performance on resource-constrained FPGAs.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:cos_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Cosine Module Interface}
 \label{tab:cos_interface}
@@ -361,7 +486,29 @@ The inputs and outputs of the module are described in Table~\ref{tab:cos_interfa
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{cos} module is illustrated in Figure~\ref{fig:cos_flowchart}.
+    
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/cos.png}
+\caption{Flowchart of the Cosine Module}
+\label{fig:cos_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{cos} module is illustrated in Figure~\ref{fig:cos_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/cos_sch.png}
+\caption{Block Diagram of the Cosine Module}
+\label{fig:cos_sch}
+\end{figure}
+
+\noindent
 The \texttt{cos} module operates in the following stages:
 \begin{enumerate}
     \item \textbf{Angle Processing:} The input angle is mapped to the range [-90°, 90°] using modular arithmetic. The angle is then converted from degrees to radians in Q2.14 fixed-point format.
@@ -369,12 +516,12 @@ The \texttt{cos} module operates in the following stages:
     \item \textbf{Output Conversion:} The Q2.14 cosine result is converted to BF16 format. The conversion includes normalization, mantissa extraction, and exponent calculation.
 \end{enumerate}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{cos} module is illustrated in Figure~\ref{fig:cos_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/cos_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/cos_flowchart.pdf}
 % \caption{Flowchart of the Cosine Module}
 % \label{fig:cos_flowchart}
 % \end{figure}
@@ -383,15 +530,16 @@ The \texttt{cos} module operates in the following stages:
 
 
 % Subsection for Arccosine
+\newpage 
 \subsection{Arccosine}
 \label{subsec:arccosine}
 
 The \texttt{arccos} module computes the arccosine of an input integer slope in the range [-1, 1] and outputs the result in BFloat16 (BF16) format. The module uses a simple if-else structure to handle the limited input cases, ensuring efficient computation.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:arccos_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Arccosine Module Interface}
 \label{tab:arccos_interface}
@@ -408,7 +556,29 @@ The inputs and outputs of the module are described in Table~\ref{tab:arccos_inte
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{arccos} module is illustrated in Figure~\ref{fig:arccos_flowchart}.
+    
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/arccos.png}
+\caption{Flowchart of the Arccosine Module}
+\label{fig:arccos_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{arccos} module is illustrated in Figure~\ref{fig:arccos_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/arccos_sch.png}
+\caption{Block Diagram of the Arccosine Module}
+\label{fig:arccos_sch}
+\end{figure}
+
+\noindent
 The \texttt{arccos} module operates as follows:
 \begin{enumerate}
     \item \textbf{Input Validation:} The module checks if the input slope is within the valid range [-1, 1]. If the input is out of range, the \texttt{error} signal is asserted, and the result is set to NaN.
@@ -421,12 +591,12 @@ The \texttt{arccos} module operates as follows:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{arccos} module is illustrated in Figure~\ref{fig:arccos_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/arccos_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/arccos_flowchart.pdf}
 % \caption{Flowchart of the Arccosine Module}
 % \label{fig:arccos_flowchart}
 % \end{figure}
@@ -435,6 +605,7 @@ The \texttt{arccos} module operates as follows:
 
 
 % Subsection for Sine
+\newpage 
 \subsection{Sine}
 \label{subsec:sine}
 
@@ -443,10 +614,10 @@ The \texttt{sin} module computes the sine of an input angle in degrees by reusin
 \sin(x) = \cos(90^\circ - x)
 \]
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:sin_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Sine Module Interface}
 \label{tab:sin_interface}
@@ -457,13 +628,13 @@ The inputs and outputs of the module are described in Table~\ref{tab:sin_interfa
 \texttt{rst}         & Input              & 1              & Reset signal to initialize the module. \\ \hline
 \texttt{start}       & Input              & 1              & Start signal to initiate the computation. \\ \hline
 \texttt{a}           & Input              & 16             & Signed integer input representing the angle in degrees. \\ \hline
-\texttt{result}      & Output             & 16             & The computed sine value in BFloat16 format. \\ \hline
+\texttt{result}      & Output             & 16             & The computed sine value in BF16 format. \\ \hline
 \texttt{done}        & Output             & 1              & A signal indicating that the computation is complete. \\ \hline
 \texttt{error}       & Output             & 1              & A flag indicating if an error occurred during computation. \\ \hline
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Block Diagram and Operation}
 The \texttt{sin} module operates as follows:
 \begin{enumerate}
     \item \textbf{Angle Adjustment:} The input angle $x$ is adjusted to $90^\circ - x$ to compute the sine using the cosine module.
@@ -471,12 +642,12 @@ The \texttt{sin} module operates as follows:
     \item \textbf{Output:} The result from the \texttt{cos} module is directly used as the sine value. The \texttt{done} signal is asserted to indicate the computation is complete.
 \end{enumerate}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{sin} module is illustrated in Figure~\ref{fig:sin_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/sin_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/sin_flowchart.pdf}
 % \caption{Flowchart of the Sine Module}
 % \label{fig:sin_flowchart}
 % \end{figure}
@@ -486,15 +657,16 @@ The \texttt{sin} module operates as follows:
 
 
 % Subsection for Tangent
+\newpage 
 \subsection{Tangent}
 \label{subsec:tangent}
 
 The \texttt{tan} module computes the tangent of an input angle in degrees using the CORDIC algorithm. The module supports integer inputs in the range [-89°, 89°] and outputs the result in BFloat16 (BF16) format. Special cases such as $\tan(90^\circ)$ and $\tan(-90^\circ)$ are detected and flagged as errors.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:tan_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Tangent Module Interface}
 \label{tab:tan_interface}
@@ -511,8 +683,28 @@ The inputs and outputs of the module are described in Table~\ref{tab:tan_interfa
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
-The \texttt{tan} module operates as follows:
+\subsubsection{Flowchart}
+The flow of the \texttt{tan} module is illustrated in Figure~\ref{fig:tan_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/tan.png}
+\caption{Flowchart of the Tangent Module}
+\label{fig:tan_flowchart}
+\end{figure}
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{tan} module is illustrated in Figure~\ref{fig:tan_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/tan_sch.png}
+\caption{Block Diagram of the Tangent Module}
+\label{fig:tan_sch}
+\end{figure}
+
+\noindent The tangent module operates as follows:
 \begin{enumerate}
     \item \textbf{Input Validation:} The module checks if the input angle is $\pm90^\circ$. If so, the \texttt{error} signal is asserted, and the result is set to NaN.
     \item \textbf{Angle Reduction:} The input angle is reduced to the range [-90°, 90°] using modular arithmetic.
@@ -522,12 +714,12 @@ The \texttt{tan} module operates as follows:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{tan} module is illustrated in Figure~\ref{fig:tan_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/tan_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/tan_flowchart.pdf}
 % \caption{Flowchart of the Tangent Module}
 % \label{fig:tan_flowchart}
 % \end{figure}
@@ -535,15 +727,16 @@ The \texttt{tan} module operates as follows:
 \noindent The module ensures efficient and accurate computation of tangent values, with robust handling of special cases and conversion to BF16 format.
 
 % Subsection for Arctangent
+\newpage 
 \subsection{Arctangent}
 \label{subsec:arctangent}
 
 The \texttt{arctan} module computes the arctangent of an input integer slope in the range [-999, 999] and outputs the result in BFloat16 (BF16) format. The module uses the CORDIC algorithm in vectoring mode, with additional handling for large inputs that exceed the Q2.14 range.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:arctan_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Arctangent Module Interface}
 \label{tab:arctan_interface}
@@ -560,8 +753,28 @@ The inputs and outputs of the module are described in Table~\ref{tab:arctan_inte
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
-The \texttt{arctan} module operates as follows:
+\subsubsection{Flowchart}
+The flow of the \texttt{arctan} module is illustrated in Figure~\ref{fig:arctan_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/arctan.png}
+\caption{Flowchart of the Arctangent Module}
+\label{fig:arctan_flowchart}
+\end{figure}
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{arctan} module is illustrated in Figure~\ref{fig:arctan_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/arctan_sch.png}
+\caption{Block Diagram of the Arctangent Module}
+\label{fig:arctan_sch}
+\end{figure}
+
+\noindent The \texttt{arctan} module operates as follows:
 \begin{enumerate}
     \item \textbf{Input Validation:} The module checks if the input slope is within the valid range [-999, 999]. If the input is out of range, the \texttt{error} signal is asserted, and the result is set to NaN.
     \item \textbf{Special Cases:} The module directly returns precomputed BF16 values for the following cases:
@@ -583,12 +796,12 @@ The \texttt{arctan} module operates as follows:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{arctan} module is illustrated in Figure~\ref{fig:arctan_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/arctan_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/arctan_flowchart.pdf}
 % \caption{Flowchart of the Arctangent Module}
 % \label{fig:arctan_flowchart}
 % \end{figure}
@@ -596,6 +809,7 @@ The \texttt{arctan} module operates as follows:
 \noindent The module ensures efficient and accurate computation of arctangent values, with robust handling of large inputs and conversion to BF16 format.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage 
 \subsection{Logarithm}
 \label{subsec:logarithm}
 
@@ -605,10 +819,10 @@ The \texttt{log} module is designed to compute the logarithm of an input $b$ wit
 \]
 To achieve this without complex IP cores, it utilizes a sequential architecture that repurposes a single CORDIC core to calculate both natural logarithms ($\ln(b)$ and $\ln(a)$) before performing a fixed-point division (Reference: \url{https://docs.amd.com/r/en-US/ug958-vivado-sysgen-ref/CORDIC-LOG}).
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:log_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Logarithm Module Interface}
 \label{tab:log_interface}
@@ -626,7 +840,29 @@ The inputs and outputs of the module are described in Table~\ref{tab:log_interfa
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{log} module is illustrated in Figure~\ref{fig:log_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/log.png}
+\caption{Flowchart of the Logarithm Module}
+\label{fig:log_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{log} module is illustrated in Figure~\ref{fig:log_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/log_sch.png}
+\caption{Block Diagram of the Logarithm Module}
+\label{fig:log_sch}
+\end{figure}
+
+\noindent
 The \texttt{log} module operates through a sequential finite state machine. The stages are described as follows:
 \begin{enumerate}
     \item \textbf{Input Validation (S\_VALIDATE):} Ensures inputs are mathematically valid by rejecting non-positive values or a base of one.
@@ -639,15 +875,16 @@ The \texttt{log} module operates through a sequential finite state machine. The 
 \noindent The module also includes error handling to ensure that invalid inputs, such as non-positive values or a base of one, are flagged appropriately.
 
 % filepath: c:\HKUST\ELEC4320\Proj\ELEC4320-Project\report\core_module.tex
+\newpage 
 \subsection{Exponential Operations}
 \label{subsec:exponential_operations}
 
 The \texttt{exp} module is designed to compute the exponential function $e^a$ for signed integer inputs, producing a BFloat16 (BF16) output. It utilizes a Finite State Machine (FSM) to orchestrate a hardware-efficient calculation based on the CORDIC algorithm in hyperbolic mode.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:exp_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Exponential Module Interface}
 \label{tab:exp_interface}
@@ -664,7 +901,29 @@ The inputs and outputs of the module are described in Table~\ref{tab:exp_interfa
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{exp} module is illustrated in Figure~\ref{fig:exp_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/exp.png}
+\caption{Flowchart of the Exponential Module}
+\label{fig:exp_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{exp} module is illustrated in Figure~\ref{fig:exp_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/exp_sch.png}
+\caption{Block Diagram of the Exponential Module}
+\label{fig:exp_sch}
+\end{figure}
+
+\noindent
 The \texttt{exp} module performs exponential calculations through a three-phase process managed by a finite state machine. The phases are described as follows:
 \begin{enumerate}
     \item \textbf{Range Reduction (S\_REDUCE\_1, S\_REDUCE\_2):} The module handles large inputs by decomposing the value $a$ into an integer $k$ and a remainder $r$ using the identity:
@@ -678,7 +937,8 @@ The \texttt{exp} module performs exponential calculations through a three-phase 
 
 \noindent The module also includes error handling to ensure that invalid inputs, such as excessively large or small values, are flagged appropriately.
 
-% filepath: c:\HKUST\ELEC4320\Proj\ELEC4320-Project\report\core_module.tex
+
+\newpage 
 \subsection{Power}
 \label{subsec:power}
 
@@ -688,10 +948,10 @@ a^b = e^{b \cdot \ln(a)}
 \]
 This approach effectively fuses a logarithm (using the CORDIC algorithm) and an exponential calculator into a single, unified pipeline.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:pow_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Power Module Interface}
 \label{tab:pow_interface}
@@ -709,7 +969,30 @@ The inputs and outputs of the module are described in Table~\ref{tab:pow_interfa
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
+\subsubsection{Flowchart}
+The flow of the \texttt{pow} module is illustrated in Figure~\ref{fig:pow_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/pow.png}
+\caption{Flowchart of the Power Module}
+\label{fig:pow_flowchart}
+\end{figure}
+
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{pow} module is illustrated in Figure~\ref{fig:pow_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/pow_sch.png}
+\caption{Block Diagram of the Power Module}
+\label{fig:pow_sch}
+\end{figure}
+
+\noindent
+
 The \texttt{pow} module operates through a sophisticated five-phase Finite State Machine (FSM) to compute powers using the logarithmic identity $a^b = e^{b \ln a}$. The phases are described as follows:
 \begin{enumerate}
     \item \textbf{Input Validation (S\_VALIDATE):} Handles edge cases, such as returning 1 when the exponent is 0 or erroring on invalid negative bases. The result's sign is determined based on the exponent's parity.
@@ -732,15 +1015,16 @@ The \texttt{pow} module operates through a sophisticated five-phase Finite State
 
 
 % Subsection for Factorial
+\newpage 
 \subsection{Factorial}
 \label{subsec:factorial}
 
 The \texttt{fac} module computes the factorial of an integer input using an iterative multiplication approach. The module supports integer inputs in the range [0, 12] and outputs the result in BFloat16 (BF16) format. Inputs outside this range are flagged as errors.
 
-\subsubsection*{Inputs and Outputs}
+\subsubsection{Inputs and Outputs}
 The inputs and outputs of the module are described in Table~\ref{tab:fac_interface}.
 
-\begin{table}[h!]
+\begin{table}[H]
 \centering
 \caption{Factorial Module Interface}
 \label{tab:fac_interface}
@@ -757,8 +1041,28 @@ The inputs and outputs of the module are described in Table~\ref{tab:fac_interfa
 \end{tabular}
 \end{table}
 
-\subsubsection*{Block Diagram and Operation}
-The \texttt{fac} module operates as follows:
+\subsubsection{Flowchart}
+The flow of the \texttt{fac} module is illustrated in Figure~\ref{fig:fac_flowchart}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/fac.png}
+\caption{Flowchart of the Factorial Module}
+\label{fig:fac_flowchart}
+\end{figure}
+
+\subsubsection{Block Diagram and Operation}
+
+The block diagram of the \texttt{fac} module is illustrated in Figure~\ref{fig:fac_sch}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/fac_sch.png}
+\caption{Block Diagram of the Factorial Module}
+\label{fig:fac_sch}
+\end{figure}
+
+\noindent The \texttt{fac} module operates as follows:
 \begin{enumerate}
     \item \textbf{Input Validation:} The module checks if the input is within the valid range [0, 12]. If the input is negative or greater than 12, the \texttt{error} signal is asserted, and the computation is aborted.
     \item \textbf{Factorial Computation:} For valid inputs, the module iteratively multiplies integers from 1 to the input value using a 32-bit unsigned accumulator.
@@ -766,14 +1070,12 @@ The \texttt{fac} module operates as follows:
     \item \textbf{Output:} The \texttt{done} signal is asserted to indicate that the computation is complete, and the result is made available on the output.
 \end{enumerate}
 
-% \subsubsection*{Flowchart}
+% \subsubsection{Flowchart}
 % The flow of the \texttt{fac} module is illustrated in Figure~\ref{fig:fac_flowchart}.
 
-% \begin{figure}[h!]
+% \begin{figure}[H]
 % \centering
-% \includegraphics[width=0.8\textwidth]{images/fac_flowchart.pdf}
+% \includegraphics[width=\textwidth]{images/fac_flowchart.pdf}
 % \caption{Flowchart of the Factorial Module}
 % \label{fig:fac_flowchart}
 % \end{figure}
-
-\noindent The module ensures efficient computation of factorial values, with robust handling of invalid inputs and conversion to BF16 format.

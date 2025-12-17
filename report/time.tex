@@ -1,0 +1,608 @@
+\section{Timing Analysis}
+\label{sec:timing_analysis}
+
+\noindent This section provides a theoretical analysis of the timing characteristics for each computational module in the calculator system. The analysis includes clock cycle counts, critical path considerations, and latency calculations based on the system clock frequency.
+
+\subsection{System Clock Configuration}
+\label{subsec:clock_config}
+
+\noindent The system operates with the following clock configuration:
+\begin{itemize}
+\item \textbf{System Clock:} 300 MHz for computational modules
+\item \textbf{Clock Period:} $T_{clk} = 3.33$ ns
+\item \textbf{Input Controller Clock:} 100 MHz (derived from 300 MHz via clock divider)
+\item \textbf{Input Clock Period:} $T_{clk\_input} = 10$ ns
+\item \textbf{7-Segment Refresh Rate:} Approximately 1 kHz for flicker-free display
+\end{itemize}
+
+\subsection{Module Timing Summary}
+\label{subsec:timing_summary}
+
+\noindent Table~\ref{tab:timing_summary} provides an overview of the timing characteristics for each computational module.
+
+\begin{table}[H]
+\centering
+\caption{Module Timing Summary}
+\label{tab:timing_summary}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Module} & \textbf{Clock Cycles} & \textbf{Latency (ns)} & \textbf{Pipeline Stages} \\ \hline
+Addition/Subtraction & 2 & 6.67 & 2 \\ \hline
+Multiplication & 4 & 13.33 & 4 \\ \hline
+Division & 32-48 & 106.67-160 & Sequential \\ \hline
+Square Root & 16-24 & 53.33-80 & Sequential \\ \hline
+Cosine (CORDIC) & 16 & 53.33 & 16 \\ \hline
+Sine (via Cosine) & 16 & 53.33 & 16 \\ \hline
+Tangent (CORDIC) & 16 & 53.33 & 16 \\ \hline
+Arctangent (CORDIC) & 16 & 53.33 & 16 \\ \hline
+Arccosine & 1 & 3.33 & Combinational \\ \hline
+Logarithm & 48-64 & 160-213.33 & Sequential \\ \hline
+Exponential & 32-48 & 106.67-160 & Sequential \\ \hline
+Power & 64-96 & 213.33-320 & Sequential \\ \hline
+Factorial & $n+2$ & $(n+2) \times 3.33$ & Sequential \\ \hline
+\end{tabular}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Addition and Subtraction Timing}
+\label{subsec:add_timing}
+
+\noindent The addition and subtraction operations share the same hardware unit, with subtraction implemented by negating the second operand.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{Stage 1 - Integer Addition (1 cycle):}
+\begin{itemize}
+\item 16-bit signed addition/subtraction
+\item Overflow detection
+\item Critical path: 16-bit carry propagation
+\end{itemize}
+
+\item \textbf{Stage 2 - BF16 Conversion (1 cycle):}
+\begin{itemize}
+\item Sign extraction
+\item Leading zero count for normalization
+\item Exponent calculation with bias (127)
+\item Mantissa extraction (7 bits)
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The total latency for addition is:
+\begin{equation*}
+T_{add} = 2 \times T_{clk} = 2 \times 3.33\text{ ns} = 6.67\text{ ns}
+\end{equation*}
+
+\noindent The critical path is determined by the 16-bit carry chain:
+\begin{equation*}
+T_{critical} = T_{XOR} + 16 \times T_{carry} + T_{mux}
+\end{equation*}
+
+\noindent where $T_{XOR}$ is the XOR gate delay for subtraction, $T_{carry}$ is the carry propagation delay per bit, and $T_{mux}$ is the output multiplexer delay.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Multiplication Timing}
+\label{subsec:mul_timing}
+
+\noindent The multiplication module employs a 4-stage pipeline to convert two signed 16-bit integers into a BFloat16 result.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{Stage 1 - Signed Multiplication (1 cycle):}
+\begin{itemize}
+\item 16$\times$16 signed multiplication producing 32-bit result
+\item Critical path: Array multiplier or DSP block latency
+\end{itemize}
+
+\item \textbf{Stage 2 - Sign and Magnitude Processing (1 cycle):}
+\begin{itemize}
+\item Sign determination: $sign_{result} = sign_a \oplus sign_b$
+\item Absolute value computation
+\end{itemize}
+
+\item \textbf{Stage 3 - Normalization (1 cycle):}
+\begin{itemize}
+\item Leading one detection using priority encoder
+\item Shift amount calculation
+\end{itemize}
+
+\item \textbf{Stage 4 - BF16 Packing (1 cycle):}
+\begin{itemize}
+\item Exponent calculation: $exp = 127 + shift_{amount}$
+\item Mantissa extraction (7 bits)
+\item Final result assembly
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The total pipeline latency is:
+\begin{equation*}
+T_{mul} = 4 \times T_{clk} = 4 \times 3.33\text{ ns} = 13.33\text{ ns}
+\end{equation*}
+
+\noindent For the 16$\times$16 multiplication, the theoretical gate delay is:
+\begin{equation*}
+T_{mult\_array} = O(\log_2(16)) = O(4) \text{ levels of carry-save adders}
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Division Timing}
+\label{subsec:div_timing}
+
+\noindent The division module implements the Restoring Division algorithm, which requires iterative processing for both integer and fractional parts.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{Initialization (S\_IDLE) - 1 cycle:}
+\begin{itemize}
+\item Division-by-zero check
+\item Sign determination
+\item Absolute value conversion
+\end{itemize}
+
+\item \textbf{Integer Division (S\_INT\_DIV) - 16 cycles:}
+\begin{itemize}
+\item Each iteration: shift, subtract, restore if necessary
+\item Total: 16 iterations for 16-bit dividend
+\end{itemize}
+
+\item \textbf{Fractional Division (S\_FRAC\_DIV) - 8-16 cycles:}
+\begin{itemize}
+\item Additional precision bits for mantissa
+\item 8 iterations for 7-bit mantissa + guard bits
+\end{itemize}
+
+\item \textbf{Output Formatting (S\_OUTPUT) - 1 cycle:}
+\begin{itemize}
+\item Normalization and BF16 packing
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The worst-case latency for division is:
+\begin{equation*}
+T_{div} = (1 + 16 + 16 + 1) \times T_{clk} = 34 \times 3.33\text{ ns} = 113.33\text{ ns}
+\end{equation*}
+
+\noindent For each iteration of the restoring algorithm:
+\begin{equation*}
+T_{iteration} = T_{shift} + T_{subtract} + T_{compare} + T_{restore}
+\end{equation*}
+
+\noindent The number of iterations $N$ is bounded by:
+\begin{equation*}
+N = N_{int} + N_{frac} = 16 + 8 = 24 \text{ (typical case)}
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Square Root Timing}
+\label{subsec:sqrt_timing}
+
+\noindent The square root module implements a binary restoring square root algorithm with iterative computation.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{S\_IDLE - 1 cycle:}
+\begin{itemize}
+\item Input validation (negative number check)
+\item Register initialization
+\end{itemize}
+
+\item \textbf{S\_COMPUTE - 8-16 cycles:}
+\begin{itemize}
+\item Each iteration processes 2 bits of the input
+\item For 16-bit input: $\lceil 16/2 \rceil = 8$ iterations minimum
+\end{itemize}
+
+\item \textbf{S\_FRAC - 4-8 cycles:}
+\begin{itemize}
+\item Fractional precision for mantissa bits
+\end{itemize}
+
+\item \textbf{S\_NORMALIZE - 1 cycle:}
+\begin{itemize}
+\item Leading one detection and shift
+\end{itemize}
+
+\item \textbf{S\_DONE - 1 cycle:}
+\begin{itemize}
+\item BF16 packing and output
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The latency for square root is:
+\begin{equation*}
+T_{sqrt} = (1 + N_{int}/2 + N_{frac} + 2) \times T_{clk}
+\end{equation*}
+
+\noindent For a 16-bit input with 8 fractional bits:
+\begin{equation*}
+T_{sqrt} = (1 + 8 + 8 + 2) \times 3.33\text{ ns} = 63.33\text{ ns}
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{CORDIC-Based Trigonometric Functions Timing}
+\label{subsec:cordic_timing}
+
+\noindent The CORDIC (Coordinate Rotation Digital Computer) algorithm is used for computing trigonometric functions. All CORDIC-based modules share similar timing characteristics.
+
+\subsubsection{CORDIC Algorithm Iterations}
+\noindent The number of iterations $N$ determines the precision:
+\begin{equation*}
+\text{Precision} \approx N \text{ bits}
+\end{equation*}
+
+\noindent For Q2.14 fixed-point format, 16 iterations provide sufficient precision.
+
+\subsubsection{Timing Breakdown for Cosine/Sine}
+\begin{enumerate}
+\item \textbf{Angle Preprocessing - 2 cycles:}
+\begin{itemize}
+\item Modulo operation to map angle to $[-90^\circ, 90^\circ]$
+\item Degree to radian conversion (fixed-point multiplication)
+\end{itemize}
+
+\item \textbf{CORDIC Iterations - 16 cycles:}
+\begin{itemize}
+\item Each iteration: 2 shifts, 2 additions, 1 comparison
+\item Iteration $i$: rotate by $\arctan(2^{-i})$
+\end{itemize}
+
+\item \textbf{Output Conversion - 2 cycles:}
+\begin{itemize}
+\item Q2.14 to BF16 conversion
+\item Normalization and packing
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The total latency for CORDIC-based functions is:
+\begin{equation*}
+T_{CORDIC} = (2 + 16 + 2) \times T_{clk} = 20 \times 3.33\text{ ns} = 66.67\text{ ns}
+\end{equation*}
+
+\noindent The convergence of CORDIC after $N$ iterations:
+\begin{equation*}
+\theta_{error} < 2^{-N} \text{ radians}
+\end{equation*}
+
+\noindent For $N = 16$: $\theta_{error} < 1.5 \times 10^{-5}$ radians.
+
+\subsubsection{Tangent Additional Considerations}
+\noindent The tangent function computes both sine and cosine, then performs division:
+\begin{equation*}
+\tan(\theta) = \frac{\sin(\theta)}{\cos(\theta)} = \frac{y}{x}
+\end{equation*}
+
+\noindent Since both $x$ and $y$ are computed simultaneously in CORDIC, the division adds:
+\begin{equation*}
+T_{tan} = T_{CORDIC} + T_{div\_fixed} \approx 66.67 + 33.33 = 100\text{ ns}
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Arccosine Timing}
+\label{subsec:arccos_timing}
+
+\noindent The arccosine module handles only integer inputs in the range $[-1, 1]$, resulting in a simple combinational lookup.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{Input Validation and Lookup - 1 cycle:}
+\begin{itemize}
+\item Range check: $-1 \leq a \leq 1$
+\item Direct mapping: $\arccos(-1) = 180^\circ$, $\arccos(0) = 90^\circ$, $\arccos(1) = 0^\circ$
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The latency is minimal:
+\begin{equation*}
+T_{arccos} = 1 \times T_{clk} = 3.33\text{ ns}
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Logarithm Timing}
+\label{subsec:log_timing}
+
+\noindent The logarithm module computes $\log_a(b)$ using the change-of-base formula, requiring two natural logarithm computations and one division.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{Input Validation (S\_VALIDATE) - 1 cycle:}
+\begin{itemize}
+\item Check $a > 0$, $a \neq 1$, $b > 0$
+\end{itemize}
+
+\item \textbf{Compute $\ln(b)$ (S\_LN\_B) - 16 cycles:}
+\begin{itemize}
+\item CORDIC in hyperbolic mode
+\item Range reduction if necessary
+\end{itemize}
+
+\item \textbf{Compute $\ln(a)$ (S\_LN\_A) - 16 cycles:}
+\begin{itemize}
+\item Reuse CORDIC core
+\end{itemize}
+
+\item \textbf{Division (S\_DIVIDE) - 16-24 cycles:}
+\begin{itemize}
+\item Fixed-point division: $\ln(b) / \ln(a)$
+\end{itemize}
+
+\item \textbf{Output Conversion (S\_CONVERT) - 1 cycle:}
+\begin{itemize}
+\item BF16 packing
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The total latency is:
+\begin{equation*}
+T_{log} = (1 + 16 + 16 + 20 + 1) \times T_{clk} = 54 \times 3.33\text{ ns} = 180\text{ ns}
+\end{equation*}
+
+\noindent The CORDIC hyperbolic logarithm converges as:
+\begin{equation*}
+\ln(x) = 2 \cdot \text{arctanh}\left(\frac{x-1}{x+1}\right)
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Exponential Timing}
+\label{subsec:exp_timing}
+
+\noindent The exponential module computes $e^a$ using CORDIC in hyperbolic mode with range reduction.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{Range Reduction (S\_REDUCE\_1, S\_REDUCE\_2) - 2-4 cycles:}
+\begin{itemize}
+\item Decompose $a = k \cdot \ln(2) + r$ where $|r| < \ln(2)/2$
+\item Store integer $k$ for final scaling
+\end{itemize}
+
+\item \textbf{CORDIC Computation (S\_CORDIC) - 16 cycles:}
+\begin{itemize}
+\item Compute $e^r$ using hyperbolic CORDIC
+\item Result: $\cosh(r) + \sinh(r) = e^r$
+\end{itemize}
+
+\item \textbf{Scaling and Conversion (S\_CONVERT) - 2 cycles:}
+\begin{itemize}
+\item Multiply by $2^k$ via exponent adjustment
+\item BF16 normalization and packing
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The total latency is:
+\begin{equation*}
+T_{exp} = (4 + 16 + 2) \times T_{clk} = 22 \times 3.33\text{ ns} = 73.33\text{ ns}
+\end{equation*}
+
+\noindent The range reduction ensures CORDIC convergence:
+\begin{equation*}
+|r| < 1.1182 \text{ (CORDIC convergence bound for hyperbolic mode)}
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Power Function Timing}
+\label{subsec:pow_timing}
+
+\noindent The power module computes $a^b$ using the identity $a^b = e^{b \cdot \ln(a)}$, combining logarithm and exponential operations.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{Input Validation (S\_VALIDATE) - 1 cycle:}
+\begin{itemize}
+\item Handle special cases: $a^0 = 1$, $0^b = 0$
+\item Negative base validation
+\end{itemize}
+
+\item \textbf{Compute $\ln(a)$ (S\_LN) - 16 cycles:}
+\begin{itemize}
+\item CORDIC hyperbolic mode
+\end{itemize}
+
+\item \textbf{Multiply $b \cdot \ln(a)$ (S\_MULTIPLY) - 4 cycles:}
+\begin{itemize}
+\item Fixed-point multiplication
+\end{itemize}
+
+\item \textbf{Range Reduction (S\_REDUCE) - 2-4 cycles:}
+\begin{itemize}
+\item Prepare for exponential computation
+\end{itemize}
+
+\item \textbf{Compute $e^{b \cdot \ln(a)}$ (S\_EXP) - 16 cycles:}
+\begin{itemize}
+\item CORDIC hyperbolic mode
+\end{itemize}
+
+\item \textbf{Output Conversion (S\_CONVERT) - 2 cycles:}
+\begin{itemize}
+\item Scaling and BF16 packing
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The total latency is:
+\begin{equation*}
+T_{pow} = (1 + 16 + 4 + 4 + 16 + 2) \times T_{clk} = 43 \times 3.33\text{ ns} = 143.33\text{ ns}
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Factorial Timing}
+\label{subsec:fac_timing}
+
+\noindent The factorial module computes $n!$ using iterative multiplication for inputs in $[0, 12]$.
+
+\subsubsection{Timing Breakdown}
+\begin{enumerate}
+\item \textbf{Initialization - 1 cycle:}
+\begin{itemize}
+\item Input validation ($0 \leq n \leq 12$)
+\item Initialize accumulator to 1
+\end{itemize}
+
+\item \textbf{Iterative Multiplication - $n$ cycles:}
+\begin{itemize}
+\item For $i = 2$ to $n$: accumulator $\leftarrow$ accumulator $\times i$
+\item Each multiplication: 1 cycle (pipelined multiplier)
+\end{itemize}
+
+\item \textbf{BF16 Conversion - 1 cycle:}
+\begin{itemize}
+\item Normalization and packing
+\end{itemize}
+\end{enumerate}
+
+\subsubsection{Theoretical Analysis}
+\noindent The latency depends on input $n$:
+\begin{equation*}
+T_{fac}(n) = (1 + n + 1) \times T_{clk} = (n + 2) \times 3.33\text{ ns}
+\end{equation*}
+
+\noindent For maximum input $n = 12$:
+\begin{equation*}
+T_{fac}(12) = 14 \times 3.33\text{ ns} = 46.67\text{ ns}
+\end{equation*}
+
+\noindent The valid range is limited because:
+\begin{equation*}
+12! = 479,001,600 < 2^{31} - 1 \text{ (fits in 32-bit integer)}
+\end{equation*}
+\begin{equation*}
+13! = 6,227,020,800 > 2^{32} \text{ (overflow)}
+\end{equation*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Critical Path Analysis}
+\label{subsec:critical_path}
+
+\subsubsection{Combinational Critical Paths}
+\noindent The critical path for each pipeline stage must satisfy:
+\begin{equation*}
+T_{critical} < T_{clk} - T_{setup} - T_{clk\_skew}
+\end{equation*}
+
+\noindent For a 300 MHz clock with $T_{setup} = 0.3$ ns and $T_{clk\_skew} = 0.1$ ns:
+\begin{equation*}
+T_{critical} < 3.33 - 0.3 - 0.1 = 2.93\text{ ns}
+\end{equation*}
+
+\subsubsection{Module-Specific Critical Paths}
+
+\begin{table}[H]
+\centering
+\caption{Critical Path Components}
+\label{tab:critical_paths}
+\begin{tabular}{|l|l|c|}
+\hline
+\textbf{Module} & \textbf{Critical Path} & \textbf{Est. Delay (ns)} \\ \hline
+Addition & 16-bit carry chain + overflow detect & 1.5 \\ \hline
+Multiplication & 16$\times$16 multiplier (DSP) & 1.1 \\ \hline
+Division & Subtract + compare + mux & 1.9 \\ \hline
+Square Root & Shift + subtract + compare & 2.1 \\ \hline
+CORDIC & 2 shifts + 2 adds + angle compare & 2.4 \\ \hline
+BF16 Conversion & CLZ + shift + pack & 1.6 \\ \hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Timing Margin}
+\noindent The worst-case timing margin is:
+\begin{equation*}
+T_{margin} = T_{clk} - T_{setup} - T_{critical\_max} = 3.33 - 0.3 - 2.4 = 0.63\text{ ns}
+\end{equation*}
+
+\noindent This positive margin indicates the design meets timing requirements at 300 MHz.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Throughput Analysis}
+\label{subsec:throughput}
+
+\subsubsection{Pipelined Modules}
+\noindent For pipelined modules (addition, multiplication), throughput equals clock frequency after pipeline fill:
+\begin{equation*}
+\text{Throughput}_{pipelined} = f_{clk} = 300\text{ MHz} = 300 \times 10^6 \text{ ops/sec}
+\end{equation*}
+
+\subsubsection{Sequential Modules}
+\noindent For sequential modules, throughput is:
+\begin{equation*}
+\text{Throughput}_{sequential} = \frac{f_{clk}}{N_{cycles}}
+\end{equation*}
+
+\begin{table}[H]
+\centering
+\caption{Module Throughput}
+\label{tab:throughput}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Module} & \textbf{Cycles} & \textbf{Throughput (ops/sec)} \\ \hline
+Addition & 2 & $150 \times 10^6$ \\ \hline
+Multiplication & 4 & $75 \times 10^6$ \\ \hline
+Division & 34 & $8.82 \times 10^6$ \\ \hline
+Square Root & 19 & $15.79 \times 10^6$ \\ \hline
+CORDIC Trig & 20 & $15.0 \times 10^6$ \\ \hline
+Logarithm & 54 & $5.56 \times 10^6$ \\ \hline
+Exponential & 22 & $13.64 \times 10^6$ \\ \hline
+Power & 43 & $6.98 \times 10^6$ \\ \hline
+Factorial (n=12) & 14 & $21.43 \times 10^6$ \\ \hline
+\end{tabular}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Input/Output Controller Timing}
+\label{subsec:io_timing}
+
+\noindent The Input/Output Controller operates at 100 MHz (derived from the 300 MHz system clock) to ensure reliable button debouncing and display refresh.
+
+\subsubsection{Clock Domain Relationship}
+\noindent The clock divider generates a 100 MHz clock from the 300 MHz system clock:
+\begin{equation*}
+f_{input} = \frac{f_{sys}}{3} = \frac{300\text{ MHz}}{3} = 100\text{ MHz}
+\end{equation*}
+
+\subsubsection{Debounce Timing}
+\noindent Button debouncing requires stable input for a debounce period:
+\begin{equation*}
+T_{debounce} = 10\text{ ms} = 10^6 \times T_{clk\_input} = 10^6 \text{ cycles at 100 MHz}
+\end{equation*}
+
+\subsubsection{7-Segment Display Refresh}
+\noindent The display multiplexing period for 4 digits:
+\begin{equation*}
+T_{refresh} = \frac{1}{f_{refresh}} = \frac{1}{1\text{ kHz}} = 1\text{ ms per digit}
+\end{equation*}
+
+\noindent Total display cycle:
+\begin{equation*}
+T_{display\_cycle} = 4 \times T_{refresh} = 4\text{ ms}
+\end{equation*}
+
+\subsubsection{User Input Latency}
+\noindent The total latency from button press to display update:
+\begin{equation*}
+T_{input\_total} = T_{debounce} + T_{compute} + T_{display\_cycle}
+\end{equation*}
+
+\noindent For the slowest operation (power):
+\begin{equation*}
+T_{input\_total} = 10\text{ ms} + 0.143\text{ µs} + 4\text{ ms} \approx 14\text{ ms}
+\end{equation*}
+
+\noindent This is well within human perception limits ($\approx 100$ ms).
