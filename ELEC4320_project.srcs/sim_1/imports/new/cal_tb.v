@@ -162,6 +162,22 @@ module cal_tb();
          wait(cal_done);
          #10000;
          $display("Result: 0x%04h (Expected: 0x40C0 = 6.0)", alu_result);
+         
+         // =====================================================
+        // Test 4: Subtraction (-23 - 5 = -28)
+        // =====================================================
+         $display("\n=== Test 4: Subtraction -23 - 5 ===");
+         system_reset();
+         sw = `OP_SUB;
+         #100000;
+        
+         simulate_input(-23);
+         #5000;
+         simulate_input(-5);
+        
+         wait(cal_done);
+         #10000;
+         $display("Result: 0x%04h (Expected: 0x40C0 = -25)", alu_result);
         
         // =====================================================
         // Test 5: Subtraction (50 - 30 = 20)
