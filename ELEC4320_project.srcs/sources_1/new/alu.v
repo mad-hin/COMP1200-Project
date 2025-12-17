@@ -433,7 +433,7 @@ module alu(
                 OUTPUT: begin
                     // Hold result for one cycle
                     cal_done <= 1;
-                    // state <= IDLE;
+                    state <= IDLE;
                 end
 
                 default: state <= IDLE;
