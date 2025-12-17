@@ -99,6 +99,9 @@ module cal_tb();
         rst = 0;
         #SETTLE_TIME;
         
+        $display("[DEBUG] Initial alu_result=0x%04h, alu_error=%b, cal_done=%b", 
+            alu_result, alu_error, cal_done);
+
         // =====================================================
         // Test 1: Addition (5 + 3 = 8)
         // =====================================================
@@ -522,7 +525,7 @@ module cal_tb();
     task press_button_mid;
         begin
             btn_mid = 1;
-            #DEBOUNCE_TIME;
+            #(DEBOUNCE_TIME+500000);
             btn_mid = 0;
             #BUTTON_GAP;
         end

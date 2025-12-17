@@ -29,13 +29,14 @@ module input_controller(
     output reg [12:0] display_input, // 1st bit is sign, next every 4 bits is a digit, i.e. {sign, hundreds, tens, units}
     output reg input_done 
     );
-
+    reg input_done_latched;
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             current_digit <= 4'b0000;
             input_val <= 0;
             display_input <= 13'b0000000000000;
             input_done <= 1'b0;
+            input_done_latched <= 1'b0;
         end
         else begin
             // Navigate between digits
@@ -75,11 +76,9 @@ module input_controller(
                 end else begin
                     input_val <= display_input[11:8] * 100 + display_input[7:4] * 10 + display_input[3:0];
                 end
-                input_done <= 1'b1;
+                input_done_latched <= 1'b1;
             end
-            else begin
-                input_done <= 1'b0;
-            end
+            input_done <= input_done_latched;
         end
     end
 endmodule
